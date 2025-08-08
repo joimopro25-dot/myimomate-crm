@@ -1,5 +1,5 @@
-// components/SimplifiedCRM.jsx - Fixed Enhanced version (replace your current file)
-import React, { useState } from 'react';
+// components/SimplifiedCRM.jsx 
+import React, { useState, useEffect } from 'react';
 import { 
   Calendar, 
   Users, 
@@ -17,13 +17,164 @@ import {
   Activity,
   BarChart3,
   HandHeart,
-  Clock
+  Clock,
+  X
 } from 'lucide-react';
 import { useFirebaseData } from '../hooks/useFirebaseData'; // Keep same import name
 import { useAuth } from '../AuthContext';
 import ProfileSettings from './ProfileSettings';
 import AccountSettings from './AccountSettings';
 import EnhancedClientCard from './EnhancedClientCard';
+
+// ADD FIREBASE IMPORTS FOR DEAL MANAGEMENT
+import { db } from '../firebase';
+import { 
+  collection, 
+  addDoc, 
+  updateDoc, 
+  deleteDoc, 
+  doc 
+} from 'firebase/firestore';
+
+const EditClientModal = ({ client, isOpen, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    notes: '',
+    budget: '',
+    location: ''
+  });
+
+  // Initialize form when client changes
+  useEffect(() => {
+    if (client) {
+      setFormData({
+        name: client.name || '',
+        email: client.email || '',
+        phone: client.phone || '',
+        notes: client.notes || '',
+        budget: client.budget || '',
+        location: client.location || ''
+      });
+    }
+  }, [client]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(client.id, formData);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Edit Personal Data</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({...formData, name: e.target.value})}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({...formData, email: e.target.value})}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phone
+            </label>
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({...formData, phone: e.target.value})}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Budget
+            </label>
+            <input
+              type="text"
+              value={formData.budget}
+              onChange={(e) => setFormData({...formData, budget: e.target.value})}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., €250,000"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Location
+            </label>
+            <input
+              type="text"
+              value={formData.location}
+              onChange={(e) => setFormData({...formData, location: e.target.value})}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="e.g., Vila Nova de Famalicão"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notes
+            </label>
+            <textarea
+              value={formData.notes}
+              onChange={(e) => setFormData({...formData, notes: e.target.value})}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              rows={3}
+              placeholder="Additional notes about this client..."
+            />
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
 
 const SimplifiedCRM = () => {
   // Use the enhanced hook (keeping same destructuring for compatibility)
@@ -37,6 +188,7 @@ const SimplifiedCRM = () => {
     addLead,
     convertLeadToClient,
     addClient,
+    updateClient,
     updateClientStage,
     addTask,
     completeTask,
@@ -57,6 +209,56 @@ const SimplifiedCRM = () => {
   const [showAccountSettings, setShowAccountSettings] = useState(false);
   const [clientFilter, setClientFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingClient, setEditingClient] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // FIREBASE DEAL MANAGEMENT FUNCTIONS
+  const handleSaveDeal = async (clientId, roleType, dealData) => {
+    try {
+      const dealToSave = {
+        ...dealData,
+        clientId,
+        roleType,
+        createdAt: dealData.createdAt || new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        userId: user.uid // Add user ID for multi-tenancy
+      };
+
+      if (dealData.id && dealData.isExisting) {
+        // Update existing deal - only if it actually exists in Firebase
+        await updateDoc(doc(db, 'deals', dealData.id), {
+          ...dealToSave,
+          updatedAt: new Date().toISOString()
+        });
+        console.log('Deal updated successfully');
+      } else {
+        // Create new deal - always use addDoc for new deals
+        const docRef = await addDoc(collection(db, 'deals'), dealToSave);
+        console.log('Deal created with ID:', docRef.id);
+      }
+      
+      // Optionally refresh data or show success message
+      // You can add a toast notification here if you have one
+      
+    } catch (error) {
+      console.error('Error saving deal:', error);
+      // You can add error handling/notification here
+    }
+  };
+
+  const handleDeleteDeal = async (clientId, roleType, dealId) => {
+    try {
+      await deleteDoc(doc(db, 'deals', dealId));
+      console.log('Deal deleted successfully');
+      
+      // Optionally refresh data or show success message
+      // You can add a toast notification here if you have one
+      
+    } catch (error) {
+      console.error('Error deleting deal:', error);
+      // You can add error handling/notification here
+    }
+  };
 
   // Navigation items
   const navItems = [
@@ -85,19 +287,19 @@ const SimplifiedCRM = () => {
     
     const totalDealsValue = activeDeals.reduce((sum, deal) => sum + (deal.value || 0), 0);
     const avgHealthScore = clients.length > 0 
-      ? Math.round(clients.reduce((sum, client) => sum + (client.healthScore || 50), 0) / clients.length)
-      : 50;
+      ? Math.round(clients.reduce((sum, client) => sum + (client.healthScore || 75), 0) / clients.length)
+      : 75;
 
     return {
       totalClients: clients.length,
-      newLeads: leads.length,
+      totalLeads: leads.length,
       activeDeals: activeDeals.length,
-      completedDeals: completedDeals.length,
       pendingTasks: pendingTasks.length,
       highPriorityTasks: highPriorityTasks.length,
       totalDealsValue,
       avgHealthScore,
-      totalCommunications: communications.length
+      recentCommunications: communications.slice(0, 5),
+      completedDeals: completedDeals.length
     };
   };
 
@@ -107,22 +309,28 @@ const SimplifiedCRM = () => {
   const filteredClients = clients.filter(client => {
     const matchesSearch = searchTerm === '' || 
       client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.phone?.includes(searchTerm) ||
       client.email?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    if (clientFilter === 'all') return matchesSearch;
+    const matchesFilter = clientFilter === 'all' || 
+      client.type === clientFilter ||
+      (client.activeRoles && Object.keys(client.activeRoles).includes(clientFilter));
     
-    // Filter by role (enhanced version)
-    if (client.activeRoles && client.activeRoles[clientFilter]) return matchesSearch;
-    
-    // Backward compatibility - check old type field
-    return matchesSearch && client.type === clientFilter;
+    return matchesSearch && matchesFilter;
+  });
+
+  const filteredLeads = leads.filter(lead => {
+    return searchTerm === '' || 
+      lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lead.email?.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader className="h-8 w-8 animate-spin text-blue-600" />
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <Loader className="h-6 w-6 animate-spin text-blue-600" />
+          <span className="text-gray-600">Loading your CRM...</span>
+        </div>
       </div>
     );
   }
@@ -130,67 +338,104 @@ const SimplifiedCRM = () => {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
-      <div className="w-64 bg-white shadow-sm border-r">
-        <div className="p-6">
-          <h1 className="text-xl font-bold text-gray-900">MyImoMate CRM</h1>
-          <p className="text-sm text-gray-500 mt-1">Enhanced Edition</p>
+      <div className="w-64 bg-white shadow-lg flex flex-col">
+        <div className="p-6 border-b">
+          <h1 className="text-xl font-bold text-gray-800">MyImoMate CRM</h1>
+          <p className="text-sm text-gray-500">Real Estate Management</p>
         </div>
-        
-        <div className="px-3">
-          <nav className="space-y-1">
-            {navItems.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setActiveView(id)}
-                className={`w-full flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  activeView === id
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Icon className="h-4 w-4 mr-2" />
-                {label}
-                {id === 'deals' && deals.filter(d => d.status === 'active').length > 0 && (
-                  <span className="ml-auto bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full text-xs">
-                    {deals.filter(d => d.status === 'active').length}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
+
+        <nav className="flex-1 p-4">
+          <ul className="space-y-2">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <li key={item.id}>
+                  <button
+                    onClick={() => setActiveView(item.id)}
+                    className={`w-full flex items-center px-4 py-3 text-left rounded-lg transition-colors ${
+                      activeView === item.id
+                        ? 'bg-blue-100 text-blue-700 font-medium'
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <Icon className="h-5 w-5 mr-3" />
+                    {item.label}
+                    {item.id === 'leads' && leads.length > 0 && (
+                      <span className="ml-auto bg-blue-600 text-white text-xs px-2 py-1 rounded-full">
+                        {leads.length}
+                      </span>
+                    )}
+                    {item.id === 'tasks' && stats.pendingTasks > 0 && (
+                      <span className="ml-auto bg-red-600 text-white text-xs px-2 py-1 rounded-full">
+                        {stats.pendingTasks}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="p-4 border-t">
+          <div className="text-xs text-gray-500 mb-2">Account Status</div>
+          <div className={`px-3 py-2 rounded-lg text-sm ${
+            subscriptionStatus === 'active' 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-yellow-100 text-yellow-800'
+          }`}>
+            {subscriptionStatus === 'active' ? '✓ Pro Plan' : '⚡ Basic Plan'}
+          </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
-        <div className="bg-white border-b px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 capitalize">
+        <div className="bg-white shadow-sm border-b">
+          <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-semibold text-gray-800 capitalize">
                 {activeView}
               </h2>
-              {activeView === 'dashboard' && (
-                <p className="text-sm text-gray-500">
-                  Overview of your real estate business
-                </p>
+              
+              {(activeView === 'clients' || activeView === 'leads') && (
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                    <input
+                      type="text"
+                      placeholder="Search..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
+                    />
+                  </div>
+                </div>
               )}
             </div>
 
             <div className="flex items-center gap-4">
-              {/* Subscription Status */}
+              {/* Notifications */}
+              {stats.highPriorityTasks > 0 && (
+                <div className="relative">
+                  <Bell className="h-6 w-6 text-gray-600 hover:text-gray-800 cursor-pointer" />
+                  <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {stats.highPriorityTasks}
+                  </span>
+                </div>
+              )}
+
+              {/* Subscription Status (Pro users only) */}
               {subscriptionStatus && (
-                <div className="text-sm text-gray-600">
-                  {subscriptionStatus.status === 'trial' && (
-                    <span className="text-orange-600">
-                      Trial: {subscriptionStatus.clientCount}/{subscriptionStatus.maxClients} clients
-                    </span>
-                  )}
-                  {subscriptionStatus.status === 'active' && (
-                    <span className="text-green-600">
-                      {userProfile?.subscriptionPlan === 'pro' ? 'Pro Plan' : 'Basic Plan'}
-                    </span>
-                  )}
+                <div className="flex items-center">
+                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    subscriptionStatus === 'active' 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {subscriptionStatus === 'active' ? 'Pro Plan' : 'Basic Plan'}
+                  </span>
                 </div>
               )}
 
@@ -311,97 +556,124 @@ const SimplifiedCRM = () => {
             value={stats.totalClients}
             icon={Users}
             color="blue"
-            subtitle={`Avg. Health Score: ${stats.avgHealthScore}%`}
+            subtitle={`Avg. Health: ${stats.avgHealthScore}%`}
           />
-          
           <StatCard
             title="Active Deals"
             value={stats.activeDeals}
             icon={Target}
             color="green"
-            subtitle={`€${(stats.totalDealsValue / 1000).toFixed(0)}K total value`}
+            subtitle={`€${stats.totalDealsValue.toLocaleString()}`}
           />
-          
-          <StatCard
-            title="New Leads"
-            value={stats.newLeads}
-            icon={HandHeart}
-            color="purple"
-            subtitle="Ready for conversion"
-          />
-          
           <StatCard
             title="Pending Tasks"
             value={stats.pendingTasks}
-            icon={Clock}
+            icon={FileText}
             color="orange"
             subtitle={`${stats.highPriorityTasks} high priority`}
           />
+          <StatCard
+            title="New Leads"
+            value={stats.totalLeads}
+            icon={TrendingUp}
+            color="purple"
+            subtitle="This month"
+          />
         </div>
 
-        {/* Quick Insights */}
+        {/* Activity Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Activity */}
           <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <Activity className="w-5 h-5" />
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <Activity className="h-5 w-5 mr-2 text-blue-600" />
               Recent Activity
             </h3>
-            <div className="space-y-3">
-              {communications.slice(0, 5).map(comm => (
-                <div key={comm.id} className="flex items-center justify-between text-sm">
-                  <div>
-                    <span className="font-medium">{comm.type?.replace('_', ' ') || 'Activity'}</span>
-                    {comm.clientId && (
-                      <span className="text-gray-500 ml-2">
-                        with {clients.find(c => c.id === comm.clientId)?.name || 'Unknown'}
-                      </span>
-                    )}
+            {stats.recentCommunications.length > 0 ? (
+              <div className="space-y-3">
+                {stats.recentCommunications.map((comm, index) => (
+                  <div key={index} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                    <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">{comm.type}</div>
+                      <div className="text-xs text-gray-500">{comm.content}</div>
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {new Date(comm.timestamp).toLocaleDateString()}
+                    </div>
                   </div>
-                  <span className="text-gray-400">
-                    {new Date(comm.timestamp).toLocaleDateString()}
-                  </span>
-                </div>
-              ))}
-              {communications.length === 0 && (
-                <p className="text-gray-500 text-center py-4">No recent activity</p>
-              )}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Activity className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                <p>No recent activity</p>
+              </div>
+            )}
           </div>
 
-          {/* Top Clients */}
+          {/* Quick Actions */}
           <div className="bg-white rounded-lg border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              Top Clients
+            <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <HandHeart className="h-5 w-5 mr-2 text-green-600" />
+              Quick Actions
             </h3>
-            <div className="space-y-3">
-              {clients
-                .sort((a, b) => (b.healthScore || 50) - (a.healthScore || 50))
-                .slice(0, 5)
-                .map(client => {
-                  const clientStats = getClientStats ? getClientStats(client.id) : null;
-                  return (
-                    <div key={client.id} className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{client.name}</div>
-                        <div className="text-sm text-gray-500">
-                          {Object.keys(client.activeRoles || {[client.type || 'buyer']: {}}).join(', ')} • 
-                          {clientStats?.activeDeals || 0} deals
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm font-medium">
-                          {client.healthScore || 50}%
-                        </div>
-                        <div className="text-xs text-gray-500">Health Score</div>
-                      </div>
-                    </div>
-                  );
-                })}
-              {clients.length === 0 && (
-                <p className="text-gray-500 text-center py-4">No clients yet</p>
-              )}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setActiveView('clients')}
+                className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors text-center"
+              >
+                <Users className="h-6 w-6 mx-auto mb-2 text-blue-600" />
+                <div className="text-sm font-medium text-blue-800">View Clients</div>
+              </button>
+              <button
+                onClick={() => setActiveView('leads')}
+                className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors text-center"
+              >
+                <TrendingUp className="h-6 w-6 mx-auto mb-2 text-green-600" />
+                <div className="text-sm font-medium text-green-800">Manage Leads</div>
+              </button>
+              <button
+                onClick={() => setActiveView('deals')}
+                className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors text-center"
+              >
+                <Target className="h-6 w-6 mx-auto mb-2 text-orange-600" />
+                <div className="text-sm font-medium text-orange-800">Track Deals</div>
+              </button>
+              <button
+                onClick={() => setActiveView('tasks')}
+                className="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors text-center"
+              >
+                <FileText className="h-6 w-6 mx-auto mb-2 text-purple-600" />
+                <div className="text-sm font-medium text-purple-800">Manage Tasks</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Performance Metrics */}
+        <div className="bg-white rounded-lg border p-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <BarChart3 className="h-5 w-5 mr-2 text-purple-600" />
+            Performance Overview
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-600">{stats.completedDeals}</div>
+              <div className="text-sm text-gray-600">Completed Deals</div>
+              <div className="text-xs text-gray-500">This month</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-600">
+                {stats.activeDeals > 0 ? Math.round((stats.completedDeals / (stats.activeDeals + stats.completedDeals)) * 100) : 0}%
+              </div>
+              <div className="text-sm text-gray-600">Conversion Rate</div>
+              <div className="text-xs text-gray-500">Deals closed</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-600">€{Math.round(stats.totalDealsValue / 1000)}K</div>
+              <div className="text-sm text-gray-600">Pipeline Value</div>
+              <div className="text-xs text-gray-500">Active deals</div>
             </div>
           </div>
         </div>
@@ -415,22 +687,9 @@ const SimplifiedCRM = () => {
       <div className="space-y-6">
         {/* Filters and Search */}
         <div className="bg-white rounded-lg border p-4">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  placeholder="Search clients by name, phone, or email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <select
+          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+            <div className="flex gap-3 items-center">
+              <select 
                 value={clientFilter}
                 onChange={(e) => setClientFilter(e.target.value)}
                 className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -473,6 +732,9 @@ const SimplifiedCRM = () => {
                   });
                 }
               }}
+              onEditClient={(clientId, updates) => {
+                updateClient(clientId, updates);
+              }}
               onCreateDeal={(client) => {
                 if (createDeal) {
                   createDeal({
@@ -484,6 +746,9 @@ const SimplifiedCRM = () => {
                   });
                 }
               }}
+              // ADD THE NEW FIREBASE DEAL MANAGEMENT PROPS:
+              onSaveDeal={handleSaveDeal}
+              onDeleteDeal={handleDeleteDeal}
             />
           ))}
         </div>
@@ -494,8 +759,31 @@ const SimplifiedCRM = () => {
             <p className="text-gray-500">
               {searchTerm || clientFilter !== 'all' 
                 ? 'No clients match your search criteria'
-                : 'No clients yet. Add your first client to get started!'
-              }
+                : 'No clients yet. Add your first client to get started!'}
+            </p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Leads View
+  function LeadsView() {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredLeads.map(lead => (
+            <LeadCard key={lead.id} lead={lead} />
+          ))}
+        </div>
+
+        {filteredLeads.length === 0 && (
+          <div className="bg-white rounded-lg border p-8 text-center">
+            <TrendingUp className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-500">
+              {searchTerm 
+                ? 'No leads match your search criteria'
+                : 'No leads yet. Start capturing leads to grow your business!'}
             </p>
           </div>
         )}
@@ -507,125 +795,216 @@ const SimplifiedCRM = () => {
   function DealsView() {
     return (
       <div className="space-y-6">
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Active Deals</h3>
-              <p className="text-sm text-gray-500">
-                Track your property transactions and investments
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                console.log('Create new deal');
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-            >
-              <Plus className="w-4 h-4" />
-              New Deal
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {deals.filter(deal => deal.status === 'active').map(deal => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {deals.map(deal => (
             <DealCard key={deal.id} deal={deal} clients={clients} />
           ))}
         </div>
 
-        {deals.filter(deal => deal.status === 'active').length === 0 && (
+        {deals.length === 0 && (
           <div className="bg-white rounded-lg border p-8 text-center">
             <Target className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-500">
-              No active deals. Create your first deal to track progress!
-            </p>
+            <p className="text-gray-500">No active deals. Create your first deal to start tracking!</p>
           </div>
         )}
       </div>
     );
   }
 
-  // Other view functions...
-  function LeadsView() {
+  // Tasks View
+  function TasksView() {
     return (
       <div className="space-y-6">
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Active Leads</h3>
-              <p className="text-sm text-gray-500">Convert prospects into clients</p>
-            </div>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {leads.map(lead => (
-            <LeadCard key={lead.id} lead={lead} />
+          {tasks.map(task => (
+            <TaskCard key={task.id} task={task} />
           ))}
         </div>
 
-        {leads.length === 0 && (
+        {tasks.length === 0 && (
           <div className="bg-white rounded-lg border p-8 text-center">
-            <HandHeart className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-500">No leads yet. Start capturing prospects!</p>
+            <FileText className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <p className="text-gray-500">No tasks yet. Add your first task to stay organized!</p>
           </div>
         )}
       </div>
     );
   }
 
-  function TasksView() {
-    const pendingTasks = tasks.filter(task => !task.completed);
-    const completedTasks = tasks.filter(task => task.completed);
-
-    return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Tasks</h3>
-              <p className="text-sm text-gray-500">
-                {pendingTasks.length} pending • {completedTasks.length} completed
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg border p-6">
-          <h4 className="font-medium text-gray-900 mb-4">Pending Tasks</h4>
-          <div className="space-y-3">
-            {pendingTasks.map(task => (
-              <TaskCard key={task.id} task={task} />
-            ))}
-            {pendingTasks.length === 0 && (
-              <p className="text-gray-500 text-center py-4">All caught up! No pending tasks.</p>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
+  // Calendar View
   function CalendarView() {
     return (
       <div className="bg-white rounded-lg border p-8 text-center">
         <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-        <p className="text-gray-500">Calendar integration coming soon...</p>
+        <h3 className="text-lg font-medium text-gray-900 mb-2">Calendar View</h3>
+        <p className="text-gray-500">Calendar integration coming soon!</p>
       </div>
     );
   }
 
-  // Component functions...
+  // Quick Add Form
+  function QuickAddForm() {
+    const [formType, setFormType] = useState('client');
+    const [formData, setFormData] = useState({
+      name: '',
+      email: '',
+      phone: '',
+      type: 'buyer',
+      source: 'website',
+      notes: ''
+    });
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      if (formType === 'client') {
+        addClient(formData);
+      } else {
+        addLead(formData);
+      }
+      setShowAddForm(false);
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        type: 'buyer',
+        source: 'website',
+        notes: ''
+      });
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Add New {formType === 'client' ? 'Client' : 'Lead'}</h3>
+            <button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-gray-600">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setFormType('client')}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${
+                formType === 'client' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              Client
+            </button>
+            <button
+              onClick={() => setFormType('lead')}
+              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${
+                formType === 'lead' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              Lead
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+              <select
+                value={formData.type}
+                onChange={(e) => setFormData({...formData, type: e.target.value})}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="buyer">Buyer</option>
+                <option value="seller">Seller</option>
+                <option value="landlord">Landlord</option>
+                <option value="tenant">Tenant</option>
+                <option value="investor">Investor</option>
+              </select>
+            </div>
+
+            {formType === 'lead' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
+                <select
+                  value={formData.source}
+                  onChange={(e) => setFormData({...formData, source: e.target.value})}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="website">Website</option>
+                  <option value="referral">Referral</option>
+                  <option value="social">Social Media</option>
+                  <option value="advertising">Advertising</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                rows={3}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Add {formType === 'client' ? 'Client' : 'Lead'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   function LeadCard({ lead }) {
     return (
       <div className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
         <div className="flex justify-between items-start mb-3">
           <div>
             <h3 className="font-semibold text-gray-900">{lead.name}</h3>
+            <p className="text-sm text-gray-600">{lead.email}</p>
             <p className="text-sm text-gray-600">{lead.phone}</p>
-            <p className="text-xs text-gray-500">
-              Added: {new Date(lead.createdAt).toLocaleDateString()}
-            </p>
           </div>
           <span className={`px-2 py-1 rounded-full text-xs font-medium ${
             lead.type === 'buyer' ? 'bg-blue-100 text-blue-800' : 
@@ -693,225 +1072,52 @@ const SimplifiedCRM = () => {
             deal.stage === 'closing' ? 'bg-green-100 text-green-800' :
             'bg-gray-100 text-gray-800'
           }`}>
-            {deal.stage || 'Initial'}
+            {deal.stage}
           </span>
-          <button className="px-3 py-1 bg-gray-200 text-gray-700 text-xs rounded hover:bg-gray-300">
-            Update
-          </button>
         </div>
       </div>
     );
   }
 
   function TaskCard({ task }) {
-    const getPriorityColor = (priority) => {
-      switch (priority) {
-        case 'high': return 'border-red-300 bg-red-50';
-        case 'medium': return 'border-yellow-300 bg-yellow-50';
-        case 'low': return 'border-green-300 bg-green-50';
-        default: return 'border-gray-300 bg-gray-50';
-      }
-    };
-
     return (
-      <div className={`border-l-4 rounded-lg p-4 ${getPriorityColor(task.priority)} ${
-        task.completed ? 'opacity-60' : ''
-      }`}>
-        <div className="flex justify-between items-start">
+      <div className="bg-white border rounded-lg p-4 hover:shadow-md transition-shadow">
+        <div className="flex justify-between items-start mb-3">
           <div className="flex-1">
-            <h4 className={`font-medium ${task.completed ? 'line-through text-gray-500' : 'text-gray-900'}`}>
-              {task.title}
-            </h4>
-            {task.clientName && (
-              <p className="text-sm text-gray-600">Client: {task.clientName}</p>
+            <h3 className="font-semibold text-gray-900">{task.title}</h3>
+            <p className="text-sm text-gray-600">{task.description}</p>
+            {task.dueDate && (
+              <p className="text-xs text-gray-500 mt-1">
+                Due: {new Date(task.dueDate).toLocaleDateString()}
+              </p>
             )}
-            <p className="text-xs text-gray-500">
-              Due: {new Date(task.dueDate).toLocaleDateString()}
-            </p>
           </div>
-          
-          <div className="flex items-center gap-2">
-            {!task.completed && (
-              <button 
-                onClick={() => completeTask(task.id)}
-                className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
-              >
-                Complete
-              </button>
-            )}
-            <button 
-              onClick={() => deleteTask(task.id)}
-              className="px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700"
-            >
-              Delete
-            </button>
-          </div>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            task.priority === 'high' ? 'bg-red-100 text-red-800' :
+            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+            'bg-green-100 text-green-800'
+          }`}>
+            {task.priority}
+          </span>
         </div>
-      </div>
-    );
-  }
-
-  // Quick Add Form
-  function QuickAddForm() {
-    const [formType, setFormType] = useState('lead');
-    const [formData, setFormData] = useState({
-      name: '',
-      phone: '',
-      email: '',
-      type: 'buyer',
-      source: 'website',
-      notes: ''
-    });
-
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (formType === 'lead') {
-        addLead(formData);
-      } else {
-        addClient(formData);
-      }
-      setShowAddForm(false);
-      setFormData({
-        name: '',
-        phone: '',
-        email: '',
-        type: 'buyer',
-        source: 'website',
-        notes: ''
-      });
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-          <h3 className="text-lg font-semibold mb-4">Add New</h3>
-          
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setFormType('lead')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium ${
-                formType === 'lead' 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Lead
-            </button>
-            <button
-              onClick={() => setFormType('client')}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium ${
-                formType === 'client' 
-                  ? 'bg-blue-100 text-blue-700' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              Client
-            </button>
-          </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phone
-              </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type
-              </label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({...formData, type: e.target.value})}
-                className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="buyer">Buyer</option>
-                <option value="seller">Seller</option>
-                <option value="landlord">Landlord</option>
-                <option value="tenant">Tenant</option>
-                <option value="investor">Investor</option>
-              </select>
-            </div>
-
-            {formType === 'lead' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Source
-                </label>
-                <select
-                  value={formData.source}
-                  onChange={(e) => setFormData({...formData, source: e.target.value})}
-                  className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="website">Website</option>
-                  <option value="referral">Referral</option>
-                  <option value="social">Social Media</option>
-                  <option value="advertisement">Advertisement</option>
-                  <option value="walk-in">Walk-in</option>
-                  <option value="phone">Phone Call</option>
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes
-              </label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                className="w-full border rounded-lg px-3 py-2 h-20 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Additional information..."
-              />
-            </div>
-
-            <div className="flex gap-2 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Add {formType === 'lead' ? 'Lead' : 'Client'}
-              </button>
-            </div>
-          </form>
+        
+        <div className="flex justify-between items-center">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            task.completed ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+          }`}>
+            {task.completed ? 'Completed' : 'Pending'}
+          </span>
+          <button
+            onClick={() => completeTask(task.id)}
+            disabled={task.completed}
+            className={`px-3 py-1 text-xs rounded ${
+              task.completed 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {task.completed ? 'Done' : 'Complete'}
+          </button>
         </div>
       </div>
     );

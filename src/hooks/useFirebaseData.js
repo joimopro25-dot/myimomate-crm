@@ -1,4 +1,4 @@
-// hooks/useFirebaseData.js - Enhanced version (replace your current file)
+// hooks/useFirebaseData.js - Complete Fixed Version
 import { useState, useEffect } from 'react';
 import { 
   collection, 
@@ -16,13 +16,34 @@ import {
 import { db } from '../firebase';
 import { useAuth } from '../AuthContext';
 
+// ✅ HELPER FUNCTION TO SAFELY CONVERT FIREBASE DATES
+const safeToDate = (timestamp) => {
+  if (!timestamp) return new Date();
+  
+  // If it's already a Date object
+  if (timestamp instanceof Date) return timestamp;
+  
+  // If it's a Firebase Timestamp with toDate method
+  if (timestamp && typeof timestamp.toDate === 'function') {
+    return timestamp.toDate();
+  }
+  
+  // If it's a string or number, convert to Date
+  if (typeof timestamp === 'string' || typeof timestamp === 'number') {
+    return new Date(timestamp);
+  }
+  
+  // Default fallback
+  return new Date();
+};
+
 export const useFirebaseData = () => {
   const { user } = useAuth();
   const [leads, setLeads] = useState([]);
   const [clients, setClients] = useState([]);
-  const [deals, setDeals] = useState([]); // NEW: Separate deals tracking
+  const [deals, setDeals] = useState([]);
   const [tasks, setTasks] = useState([]);
-  const [communications, setCommunications] = useState([]); // NEW: Communication history
+  const [communications, setCommunications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -34,7 +55,7 @@ export const useFirebaseData = () => {
 
     const unsubscribes = [];
     let loadedCount = 0;
-    const totalCollections = 5; // Increased from 3 to 5
+    const totalCollections = 5;
 
     const handleLoadComplete = () => {
       loadedCount++;
@@ -44,7 +65,7 @@ export const useFirebaseData = () => {
     };
 
     try {
-      // EXISTING: Listen to leads (unchanged)
+      // ✅ FIXED: Listen to leads
       const leadsRef = collection(db, `users/${user.uid}/leads`);
       const leadsQuery = query(leadsRef, orderBy('createdAt', 'desc'));
       unsubscribes.push(
@@ -53,7 +74,7 @@ export const useFirebaseData = () => {
             const leadsData = snapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data(),
-              createdAt: doc.data().createdAt?.toDate() || new Date()
+              createdAt: safeToDate(doc.data().createdAt)
             }));
             setLeads(leadsData);
             handleLoadComplete();
@@ -67,7 +88,7 @@ export const useFirebaseData = () => {
         )
       );
 
-      // ENHANCED: Listen to clients with multi-role support
+      // ✅ FIXED: Listen to clients
       const clientsRef = collection(db, `users/${user.uid}/clients`);
       const clientsQuery = query(clientsRef, orderBy('lastContact', 'desc'));
       unsubscribes.push(
@@ -78,19 +99,17 @@ export const useFirebaseData = () => {
               return {
                 id: doc.id,
                 ...data,
-                createdAt: data.createdAt?.toDate() || new Date(),
-                lastContact: data.lastContact?.toDate() || new Date(),
-                // BACKWARD COMPATIBILITY: If old format, convert to new format
+                createdAt: safeToDate(data.createdAt),
+                lastContact: safeToDate(data.lastContact),
                 activeRoles: data.activeRoles || (data.type ? {
                   [data.type]: {
                     stage: data.stage || 'qualification',
                     budget: data.budget || '',
                     location: data.location || '',
                     urgency: 'medium',
-                    lastActivity: data.lastContact?.toDate() || new Date()
+                    lastActivity: safeToDate(data.lastContact)
                   }
                 } : {}),
-                // Keep old fields for compatibility
                 type: data.type || (data.activeRoles ? Object.keys(data.activeRoles)[0] : 'buyer'),
                 stage: data.stage || 'qualification'
               };
@@ -107,7 +126,7 @@ export const useFirebaseData = () => {
         )
       );
 
-      // NEW: Listen to deals
+      // ✅ FIXED: Listen to deals
       const dealsRef = collection(db, `users/${user.uid}/deals`);
       const dealsQuery = query(dealsRef, orderBy('createdAt', 'desc'));
       unsubscribes.push(
@@ -116,9 +135,9 @@ export const useFirebaseData = () => {
             const dealsData = snapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data(),
-              createdAt: doc.data().createdAt?.toDate() || new Date(),
-              expectedCloseDate: doc.data().expectedCloseDate?.toDate() || new Date(),
-              lastUpdated: doc.data().lastUpdated?.toDate() || new Date()
+              createdAt: safeToDate(doc.data().createdAt),
+              expectedCloseDate: safeToDate(doc.data().expectedCloseDate),
+              lastUpdated: safeToDate(doc.data().lastUpdated)
             }));
             setDeals(dealsData);
             handleLoadComplete();
@@ -132,7 +151,7 @@ export const useFirebaseData = () => {
         )
       );
 
-      // EXISTING: Listen to tasks (unchanged)
+      // ✅ FIXED: Listen to tasks
       const tasksRef = collection(db, `users/${user.uid}/tasks`);
       const tasksQuery = query(tasksRef, orderBy('dueDate', 'asc'));
       unsubscribes.push(
@@ -141,9 +160,9 @@ export const useFirebaseData = () => {
             const tasksData = snapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data(),
-              createdAt: doc.data().createdAt?.toDate() || new Date(),
-              dueDate: doc.data().dueDate?.toDate() || new Date(),
-              completedAt: doc.data().completedAt?.toDate()
+              createdAt: safeToDate(doc.data().createdAt),
+              dueDate: safeToDate(doc.data().dueDate),
+              completedAt: safeToDate(doc.data().completedAt)
             }));
             setTasks(tasksData);
             handleLoadComplete();
@@ -157,7 +176,7 @@ export const useFirebaseData = () => {
         )
       );
 
-      // NEW: Listen to communications
+      // ✅ FIXED: Listen to communications
       const communicationsRef = collection(db, `users/${user.uid}/communications`);
       const communicationsQuery = query(communicationsRef, orderBy('timestamp', 'desc'));
       unsubscribes.push(
@@ -166,7 +185,7 @@ export const useFirebaseData = () => {
             const communicationsData = snapshot.docs.map(doc => ({
               id: doc.id,
               ...doc.data(),
-              timestamp: doc.data().timestamp?.toDate() || new Date()
+              timestamp: safeToDate(doc.data().timestamp)
             }));
             setCommunications(communicationsData);
             handleLoadComplete();
@@ -191,7 +210,7 @@ export const useFirebaseData = () => {
     };
   }, [user]);
 
-  // EXISTING: Add new lead (unchanged)
+  // Add new lead
   const addLead = async (leadData) => {
     if (!user) {
       console.error('No user logged in');
@@ -211,7 +230,7 @@ export const useFirebaseData = () => {
     }
   };
 
-  // ENHANCED: Convert lead to client with multi-role support
+  // Convert lead to client
   const convertLeadToClient = async (lead) => {
     if (!user) {
       console.error('No user logged in');
@@ -219,7 +238,6 @@ export const useFirebaseData = () => {
     }
 
     try {
-      // Create client with new multi-role structure
       const clientsRef = collection(db, `users/${user.uid}/clients`);
       const clientData = {
         name: lead.name,
@@ -229,8 +247,6 @@ export const useFirebaseData = () => {
         notes: lead.notes || '',
         lastContact: serverTimestamp(),
         createdAt: serverTimestamp(),
-        
-        // NEW: Multi-role structure
         activeRoles: {
           [lead.type]: {
             stage: 'qualification',
@@ -241,68 +257,39 @@ export const useFirebaseData = () => {
             preferences: lead.preferences || ''
           }
         },
-        
-        // BACKWARD COMPATIBILITY: Keep old fields
         type: lead.type,
         stage: 'qualification',
-        
-        // NEW: Enhanced tracking
-        healthScore: 50, // Starting health score
+        healthScore: 50,
         lifetimeValue: 0,
         relationshipStrength: 'new'
       };
 
       const clientDoc = await addDoc(clientsRef, clientData);
-
-      // Delete from leads collection
       await deleteDoc(doc(db, `users/${user.uid}/leads`, lead.id));
 
-      // Create follow-up task
-      const tasksRef = collection(db, `users/${user.uid}/tasks`);
-      await addDoc(tasksRef, {
-        title: `Welcome call with ${lead.name}`,
-        clientId: clientDoc.id,
-        clientName: lead.name,
-        type: 'call',
-        priority: 'high',
-        dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-        completed: false,
-        createdAt: serverTimestamp(),
-        description: `Initial consultation to understand ${lead.type} requirements`
-      });
-
-      // Log communication
-      await logCommunication({
-        clientId: clientDoc.id,
-        type: 'lead_conversion',
-        content: `Lead converted to client - ${lead.type} interest`,
-        direction: 'internal'
-      });
-
+      console.log('Lead converted to client:', clientDoc.id);
+      return clientDoc.id;
     } catch (error) {
       console.error('Error converting lead to client:', error);
       setError(error);
     }
   };
 
-  // ENHANCED: Add new client with multi-role support
+  // Add new client
   const addClient = async (clientData) => {
     if (!user) {
       console.error('No user logged in');
       return;
     }
-    
+
     try {
       const clientsRef = collection(db, `users/${user.uid}/clients`);
-      
-      const enhancedClientData = {
+      const newClient = {
         ...clientData,
-        lastContact: serverTimestamp(),
         createdAt: serverTimestamp(),
-        
-        // NEW: Multi-role structure
-        activeRoles: clientData.activeRoles || {
-          [clientData.type || 'buyer']: {
+        lastContact: serverTimestamp(),
+        activeRoles: {
+          [clientData.type]: {
             stage: 'qualification',
             budget: clientData.budget || '',
             location: clientData.location || '',
@@ -310,24 +297,60 @@ export const useFirebaseData = () => {
             lastActivity: serverTimestamp()
           }
         },
-        
-        // BACKWARD COMPATIBILITY
-        stage: clientData.stage || 'qualification',
-        
-        // NEW: Enhanced tracking
+        stage: 'qualification',
         healthScore: 50,
         lifetimeValue: 0,
         relationshipStrength: 'new'
       };
 
-      await addDoc(clientsRef, enhancedClientData);
+      const clientDoc = await addDoc(clientsRef, newClient);
+      console.log('Client added:', clientDoc.id);
+      return clientDoc.id;
     } catch (error) {
       console.error('Error adding client:', error);
       setError(error);
     }
   };
 
-  // NEW: Add role to existing client
+  // Update client
+  const updateClient = async (clientId, updates) => {
+    if (!user) {
+      console.error('No user logged in');
+      return;
+    }
+
+    try {
+      const clientRef = doc(db, `users/${user.uid}/clients`, clientId);
+      await updateDoc(clientRef, {
+        ...updates,
+        lastContact: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating client:', error);
+      setError(error);
+    }
+  };
+
+  // Update client stage
+  const updateClientStage = async (clientId, newStage) => {
+    if (!user) {
+      console.error('No user logged in');
+      return;
+    }
+
+    try {
+      const clientRef = doc(db, `users/${user.uid}/clients`, clientId);
+      await updateDoc(clientRef, {
+        stage: newStage,
+        lastContact: serverTimestamp()
+      });
+    } catch (error) {
+      console.error('Error updating client stage:', error);
+      setError(error);
+    }
+  };
+
+  // Add client role
   const addClientRole = async (clientId, roleType, roleData) => {
     if (!user) {
       console.error('No user logged in');
@@ -343,73 +366,23 @@ export const useFirebaseData = () => {
           location: roleData.location || '',
           urgency: roleData.urgency || 'medium',
           lastActivity: serverTimestamp(),
-          ...roleData
+          preferences: roleData.preferences || ''
         },
         lastContact: serverTimestamp()
       });
-
-      // Log the role addition
-      await logCommunication({
-        clientId,
-        type: 'role_added',
-        content: `Added ${roleType} role to client`,
-        direction: 'internal'
-      });
-
     } catch (error) {
       console.error('Error adding client role:', error);
       setError(error);
     }
   };
 
-  // ENHANCED: Update client stage for specific role
-  const updateClientStage = async (clientId, newStage, roleType = null) => {
+  // Update client health score
+  const updateClientHealthScore = async (clientId, score) => {
     if (!user) {
       console.error('No user logged in');
       return;
     }
 
-    try {
-      const clientRef = doc(db, `users/${user.uid}/clients`, clientId);
-      
-      if (roleType) {
-        // Update specific role stage
-        await updateDoc(clientRef, {
-          [`activeRoles.${roleType}.stage`]: newStage,
-          [`activeRoles.${roleType}.lastActivity`]: serverTimestamp(),
-          lastContact: serverTimestamp()
-        });
-      } else {
-        // BACKWARD COMPATIBILITY: Update main stage
-        await updateDoc(clientRef, {
-          stage: newStage,
-          lastContact: serverTimestamp()
-        });
-      }
-
-      // Update health score based on stage progression
-      await updateClientHealthScore(clientId, newStage);
-
-    } catch (error) {
-      console.error('Error updating client stage:', error);
-      setError(error);
-    }
-  };
-
-  // NEW: Update client health score
-  const updateClientHealthScore = async (clientId, stage) => {
-    const stageScores = {
-      qualification: 30,
-      visits: 50,
-      negotiating: 70,
-      cpcv: 85,
-      contract: 85,
-      deed: 95,
-      completed: 100
-    };
-
-    const score = stageScores[stage] || 50;
-    
     try {
       const clientRef = doc(db, `users/${user.uid}/clients`, clientId);
       await updateDoc(clientRef, {
@@ -418,10 +391,11 @@ export const useFirebaseData = () => {
       });
     } catch (error) {
       console.error('Error updating health score:', error);
+      setError(error);
     }
   };
 
-  // NEW: Create deal
+  // Create deal
   const createDeal = async (dealData) => {
     if (!user) {
       console.error('No user logged in');
@@ -440,7 +414,6 @@ export const useFirebaseData = () => {
         milestones: dealData.milestones || []
       });
 
-      // Update client's active deals
       if (dealData.clientId) {
         const clientRef = doc(db, `users/${user.uid}/clients`, dealData.clientId);
         await updateDoc(clientRef, {
@@ -456,7 +429,7 @@ export const useFirebaseData = () => {
     }
   };
 
-  // NEW: Update deal
+  // Update deal
   const updateDeal = async (dealId, updates) => {
     if (!user) {
       console.error('No user logged in');
@@ -475,7 +448,7 @@ export const useFirebaseData = () => {
     }
   };
 
-  // NEW: Log communication
+  // Log communication
   const logCommunication = async (communicationData) => {
     if (!user) {
       console.error('No user logged in');
@@ -490,7 +463,6 @@ export const useFirebaseData = () => {
         userId: user.uid
       });
 
-      // Update client's last contact if clientId provided
       if (communicationData.clientId) {
         const clientRef = doc(db, `users/${user.uid}/clients`, communicationData.clientId);
         await updateDoc(clientRef, {
@@ -504,7 +476,7 @@ export const useFirebaseData = () => {
     }
   };
 
-  // EXISTING: Task functions (unchanged)
+  // Task functions
   const addTask = async (taskData) => {
     if (!user) {
       console.error('No user logged in');
@@ -557,7 +529,7 @@ export const useFirebaseData = () => {
     }
   };
 
-  // NEW: Get client stats
+  // Get client stats
   const getClientStats = (clientId) => {
     const client = clients.find(c => c.id === clientId);
     if (!client) return null;
@@ -584,29 +556,27 @@ export const useFirebaseData = () => {
     setError(null);
   };
 
+  // ✅ SINGLE RETURN STATEMENT WITH ALL FUNCTIONS
   return {
-    // EXISTING: Data (backward compatible)
+    // Data
     leads,
     clients,
     tasks,
     loading,
     error,
-    
-    // NEW: Enhanced data
     deals,
     communications,
     
-    // EXISTING: Actions (backward compatible)
+    // Actions
     addLead,
     convertLeadToClient,
     addClient,
+    updateClient,
     updateClientStage,
     addTask,
     completeTask,
     deleteTask,
     clearError,
-    
-    // NEW: Enhanced actions
     addClientRole,
     createDeal,
     updateDeal,
