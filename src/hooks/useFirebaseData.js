@@ -8,10 +8,12 @@ import {
   doc, 
   onSnapshot, 
   query, 
+  where,      
   orderBy, 
   serverTimestamp,
   arrayUnion,
-  arrayRemove 
+  arrayRemove,
+  getDocs 
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../AuthContext';
@@ -331,6 +333,59 @@ export const useFirebaseData = () => {
     }
   };
 
+    
+// Add this function to your useFirebaseData.js hook
+
+  // Delete client function - ADD THIS TO YOUR useFirebaseData.js
+  const deleteClient = async (clientId) => {
+    if (!user) {
+      console.error('No user logged in');
+      return;
+    }
+
+    try {
+      // Delete the client document
+      await deleteDoc(doc(db, `users/${user.uid}/clients`, clientId));
+      
+      // Optional: Also delete related data (tasks, communications, deals)
+      // You can choose to delete or keep this data based on your requirements
+      
+      // Delete related tasks
+      const tasksQuery = query(
+        collection(db, `users/${user.uid}/tasks`),
+        where('clientId', '==', clientId)
+      );
+      const tasksSnapshot = await getDocs(tasksQuery);
+      const deleteTaskPromises = tasksSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deleteTaskPromises);
+
+      // Delete related communications
+      const communicationsQuery = query(
+        collection(db, `users/${user.uid}/communications`),
+        where('clientId', '==', clientId)
+      );
+      const communicationsSnapshot = await getDocs(communicationsQuery);
+      const deleteCommunicationPromises = communicationsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deleteCommunicationPromises);
+
+      // Delete related deals
+      const dealsQuery = query(
+        collection(db, `users/${user.uid}/deals`),
+        where('clientId', '==', clientId)
+      );
+      const dealsSnapshot = await getDocs(dealsQuery);
+      const deleteDealPromises = dealsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deleteDealPromises);
+
+      console.log('Client and related data deleted successfully');
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      setError(error);
+      throw error; // Re-throw so the UI can handle the error
+    }
+  };
+
+
   // Update client stage
   const updateClientStage = async (clientId, newStage) => {
     if (!user) {
@@ -572,6 +627,7 @@ export const useFirebaseData = () => {
     convertLeadToClient,
     addClient,
     updateClient,
+    deleteClient,
     updateClientStage,
     addTask,
     completeTask,

@@ -20,11 +20,12 @@ import {
   Clock,
   X
 } from 'lucide-react';
-import { useFirebaseData } from '../hooks/useFirebaseData'; // Keep same import name
+import { useFirebaseData } from '../hooks/useFirebaseData';
 import { useAuth } from '../AuthContext';
 import ProfileSettings from './ProfileSettings';
 import AccountSettings from './AccountSettings';
-import EnhancedClientCard from './EnhancedClientCard';
+import SimpleClientCard from './SimpleClientCard';
+import ExpandedClientForm from './ExpandedClientForm'; // ADD THIS IMPORT
 
 // ADD FIREBASE IMPORTS FOR DEAL MANAGEMENT
 import { db } from '../firebase';
@@ -189,6 +190,7 @@ const SimplifiedCRM = () => {
     convertLeadToClient,
     addClient,
     updateClient,
+    deleteClient,
     updateClientStage,
     addTask,
     completeTask,
@@ -211,54 +213,222 @@ const SimplifiedCRM = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingClient, setEditingClient] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [formType, setFormType] = useState('client'); // ADD THIS LINE
 
-  // FIREBASE DEAL MANAGEMENT FUNCTIONS
-  const handleSaveDeal = async (clientId, roleType, dealData) => {
+  // ADD EXPANDED CLIENT SUBMISSION HANDLER
+  const handleExpandedClientSubmit = async (expandedFormData) => {
     try {
-      const dealToSave = {
-        ...dealData,
-        clientId,
-        roleType,
-        createdAt: dealData.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        userId: user.uid // Add user ID for multi-tenancy
+      // Transform the expanded form data to match the existing client structure
+      const clientData = {
+        // Basic CRM fields
+        name: expandedFormData.name,
+        email: expandedFormData.email,
+        phone: expandedFormData.phone,
+        type: expandedFormData.type,
+        source: expandedFormData.source,
+        budget: expandedFormData.budget,
+        location: expandedFormData.location,
+        notes: expandedFormData.notes,
+        urgency: expandedFormData.urgency,
+        
+        // Extended personal information
+        personalInfo: {
+          birthDate: expandedFormData.birthDate,
+          nationality: expandedFormData.nationality,
+          placeOfBirth: expandedFormData.placeOfBirth,
+          maritalStatus: expandedFormData.maritalStatus,
+          propertyRegime: expandedFormData.propertyRegime,
+          nif: expandedFormData.nif,
+          idNumber: expandedFormData.idNumber,
+          drivingLicense: expandedFormData.drivingLicense,
+          alternativePhone: expandedFormData.alternativePhone,
+          currentAddress: expandedFormData.currentAddress,
+          postalCode: expandedFormData.postalCode,
+          city: expandedFormData.city,
+          district: expandedFormData.district,
+        },
+        
+        // Spouse information (if applicable)
+        spouseInfo: (expandedFormData.maritalStatus === 'married' || expandedFormData.maritalStatus === 'civil_union') ? {
+          name: expandedFormData.spouseName,
+          email: expandedFormData.spouseEmail,
+          phone: expandedFormData.spousePhone,
+          birthDate: expandedFormData.spouseBirthDate,
+          nationality: expandedFormData.spouseNationality,
+          placeOfBirth: expandedFormData.spousePlaceOfBirth,
+          profession: expandedFormData.spouseProfession,
+          employer: expandedFormData.spouseEmployer,
+          monthlyIncome: expandedFormData.spouseMonthlyIncome,
+        } : null,
+        
+        // Professional information
+        professionalInfo: {
+          profession: expandedFormData.profession,
+          employer: expandedFormData.employer,
+          monthlyIncome: expandedFormData.monthlyIncome,
+        },
+        
+        // Financial information
+        financialInfo: {
+          bankingInfo: expandedFormData.bankingInfo,
+          mortgagePreApproval: expandedFormData.mortgagePreApproval,
+          preApprovalAmount: expandedFormData.preApprovalAmount,
+        },
+        
+        // Property preferences
+        propertyPreferences: {
+          propertyType: expandedFormData.propertyType,
+          bedrooms: expandedFormData.bedrooms,
+          bathrooms: expandedFormData.bathrooms,
+          parking: expandedFormData.parking,
+          elevator: expandedFormData.elevator,
+          balcony: expandedFormData.balcony,
+          garden: expandedFormData.garden,
+        },
+        
+        // Emergency contact
+        emergencyContact: {
+          name: expandedFormData.emergencyContactName,
+          phone: expandedFormData.emergencyContactPhone,
+          relation: expandedFormData.emergencyContactRelation,
+        },
+        
+        // Metadata
+        createdAt: new Date(),
+        lastContact: new Date(),
+        stage: 'initial_contact',
+        tags: [],
+        isExpanded: true, // Flag to indicate this uses expanded data
       };
 
-      if (dealData.id && dealData.isExisting) {
-        // Update existing deal - only if it actually exists in Firebase
-        await updateDoc(doc(db, 'deals', dealData.id), {
-          ...dealToSave,
-          updatedAt: new Date().toISOString()
-        });
-        console.log('Deal updated successfully');
+      if (formType === 'client') {
+        await addClient(clientData);
       } else {
-        // Create new deal - always use addDoc for new deals
-        const docRef = await addDoc(collection(db, 'deals'), dealToSave);
-        console.log('Deal created with ID:', docRef.id);
+        await addLead(clientData);
       }
       
-      // Optionally refresh data or show success message
-      // You can add a toast notification here if you have one
-      
+      setShowAddForm(false);
+      console.log('Client/Lead added successfully with expanded data');
     } catch (error) {
-      console.error('Error saving deal:', error);
-      // You can add error handling/notification here
+      console.error('Error adding client/lead:', error);
+      alert('Error adding client/lead. Please try again.');
     }
   };
 
-  const handleDeleteDeal = async (clientId, roleType, dealId) => {
-    try {
-      await deleteDoc(doc(db, 'deals', dealId));
-      console.log('Deal deleted successfully');
-      
-      // Optionally refresh data or show success message
-      // You can add a toast notification here if you have one
-      
-    } catch (error) {
-      console.error('Error deleting deal:', error);
-      // You can add error handling/notification here
+  // FIREBASE DEAL MANAGEMENT FUNCTIONS
+  // 🔧 FIXED SimplifiedCRM - Deal Management Functions
+// Replace the existing handleSaveDeal and handleDeleteDeal functions in your SimplifiedCRM.jsx
+
+// FIREBASE DEAL MANAGEMENT FUNCTIONS - UPDATED FOR CONSISTENCY
+const handleSaveDeal = async (clientId, roleType, dealData) => {
+  try {
+    console.log('🔧 Saving deal:', {
+      clientId,
+      roleType,
+      dealType: dealData.type,
+      dealTitle: dealData.title || dealData.propertyAddress
+    });
+
+    const dealToSave = {
+      ...dealData,
+      clientId,
+      roleType,
+      type: dealData.type || roleType, // 🔧 ENSURE: type field matches roleType for consistency
+      createdAt: dealData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      userId: user.uid // Add user ID for multi-tenancy
+    };
+
+    // 🎯 CRITICAL: Always save to user-scoped collection for consistency with useFirebaseData
+    const dealsRef = collection(db, `users/${user.uid}/deals`);
+
+    if (dealData.id && dealData.isExisting) {
+      // Update existing deal - use user-scoped path
+      const dealRef = doc(db, `users/${user.uid}/deals`, dealData.id);
+      await updateDoc(dealRef, {
+        ...dealToSave,
+        updatedAt: new Date().toISOString()
+      });
+      console.log('✅ Deal updated successfully:', dealData.id);
+    } else {
+      // Create new deal - always use addDoc for new deals
+      const docRef = await addDoc(dealsRef, dealToSave);
+      console.log('✅ Deal created successfully with ID:', docRef.id);
     }
-  };
+    
+    // Success feedback
+    console.log('✅ Deal saved successfully');
+    
+  } catch (error) {
+    console.error('❌ Error saving deal:', error);
+    alert(`Error saving deal: ${error.message}`);
+  }
+};
+
+const handleDeleteDeal = async (clientId, roleType, dealId) => {
+  try {
+    console.log('🗑️ Deleting deal:', {
+      clientId,
+      roleType,
+      dealId
+    });
+
+    // 🎯 CRITICAL: Delete from user-scoped collection for consistency
+    const dealRef = doc(db, `users/${user.uid}/deals`, dealId);
+    await deleteDoc(dealRef);
+    console.log('✅ Deal deleted successfully:', dealId);
+    
+  } catch (error) {
+    console.error('❌ Error deleting deal:', error);
+    alert(`Error deleting deal: ${error.message}`);
+  }
+};
+
+// 🔧 ADDITIONAL: Enhanced InvestorDealModal onSaveDeal handler
+// Add this enhanced function to handle investor deals specifically
+const handleSaveInvestorDeal = async (clientId, roleType, dealData) => {
+  try {
+    console.log('💰 Saving investor deal:', {
+      clientId,
+      roleType,
+      propertyAddress: dealData.propertyAddress,
+      calculations: dealData.calculations
+    });
+
+    const investorDealToSave = {
+      ...dealData,
+      clientId,
+      roleType: 'investor', // 🎯 ENSURE: Always set as investor
+      type: 'investor', // 🔧 CRITICAL: Set type for filtering
+      createdAt: dealData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      userId: user.uid,
+      // 🎯 ENHANCED: Add investor-specific metadata
+      dealCategory: 'investment_analysis',
+      isInvestorDeal: true
+    };
+
+    const dealsRef = collection(db, `users/${user.uid}/deals`);
+
+    if (dealData.id && dealData.isExisting) {
+      // Update existing investor deal
+      const dealRef = doc(db, `users/${user.uid}/deals`, dealData.id);
+      await updateDoc(dealRef, {
+        ...investorDealToSave,
+        updatedAt: new Date().toISOString()
+      });
+      console.log('✅ Investor deal updated successfully:', dealData.id);
+    } else {
+      // Create new investor deal
+      const docRef = await addDoc(dealsRef, investorDealToSave);
+      console.log('✅ Investor deal created successfully with ID:', docRef.id);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error saving investor deal:', error);
+    alert(`Error saving investor deal: ${error.message}`);
+  }
+};
 
   // Navigation items
   const navItems = [
@@ -532,8 +702,16 @@ const SimplifiedCRM = () => {
         </div>
       </div>
 
-      {/* Modals */}
-      {showAddForm && <QuickAddForm />}
+      {/* Modals - REPLACE QuickAddForm with ExpandedClientForm */}
+      {showAddForm && (
+        <ExpandedClientForm
+          isOpen={showAddForm}
+          onClose={() => setShowAddForm(false)}
+          onSubmit={handleExpandedClientSubmit}
+          formType={formType}
+          setFormType={setFormType}
+        />
+      )}
       <ProfileSettings 
         isOpen={showProfileSettings} 
         onClose={() => setShowProfileSettings(false)} 
@@ -544,6 +722,9 @@ const SimplifiedCRM = () => {
       />
     </div>
   );
+
+  // REST OF YOUR EXISTING FUNCTIONS STAY THE SAME...
+  // (All your existing view functions, components, etc.)
 
   // Enhanced Dashboard View
   function EnhancedDashboardView() {
@@ -683,89 +864,91 @@ const SimplifiedCRM = () => {
 
   // Enhanced Clients View
   function EnhancedClientsView() {
-    return (
-      <div className="space-y-6">
-        {/* Filters and Search */}
-        <div className="bg-white rounded-lg border p-4">
-          <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
-            <div className="flex gap-3 items-center">
-              <select 
-                value={clientFilter}
-                onChange={(e) => setClientFilter(e.target.value)}
-                className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">All Clients</option>
-                <option value="buyer">Buyers</option>
-                <option value="seller">Sellers</option>
-                <option value="landlord">Landlords</option>
-                <option value="tenant">Tenants</option>
-                <option value="investor">Investors</option>
-              </select>
-              
-              <button className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50">
-                <Filter className="w-4 h-4" />
-                More Filters
-              </button>
-            </div>
+  return (
+    <div className="space-y-6">
+      {/* Filters and Search */}
+      <div className="bg-white rounded-lg border p-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+          <div className="flex gap-3 items-center">
+            <select 
+              value={clientFilter}
+              onChange={(e) => setClientFilter(e.target.value)}
+              className="border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">All Clients</option>
+              <option value="buyer">Buyers</option>
+              <option value="seller">Sellers</option>
+              <option value="landlord">Landlords</option>
+              <option value="tenant">Tenants</option>
+              <option value="investor">Investors</option>
+            </select>
+            
+            <button className="flex items-center gap-2 px-3 py-2 border rounded-lg hover:bg-gray-50">
+              <Filter className="w-4 h-4" />
+              More Filters
+            </button>
           </div>
         </div>
-
-        {/* Clients Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-          {filteredClients.map(client => (
-            <EnhancedClientCard
-              key={client.id}
-              client={client}
-              clientStats={getClientStats ? getClientStats(client.id) : null}
-              onUpdateStage={updateClientStage}
-              onAddRole={addClientRole}
-              onViewDetails={(client) => {
-                console.log('View details for:', client.name);
-              }}
-              onLogCommunication={(client) => {
-                if (logCommunication) {
-                  logCommunication({
-                    clientId: client.id,
-                    type: 'call',
-                    content: `Called ${client.name}`,
-                    direction: 'outbound'
-                  });
-                }
-              }}
-              onEditClient={(clientId, updates) => {
-                updateClient(clientId, updates);
-              }}
-              onCreateDeal={(client) => {
-                if (createDeal) {
-                  createDeal({
-                    clientId: client.id,
-                    type: 'property_transaction',
-                    stage: 'initial',
-                    value: 0,
-                    probability: 50
-                  });
-                }
-              }}
-              // ADD THE NEW FIREBASE DEAL MANAGEMENT PROPS:
-              onSaveDeal={handleSaveDeal}
-              onDeleteDeal={handleDeleteDeal}
-            />
-          ))}
-        </div>
-
-        {filteredClients.length === 0 && (
-          <div className="bg-white rounded-lg border p-8 text-center">
-            <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-            <p className="text-gray-500">
-              {searchTerm || clientFilter !== 'all' 
-                ? 'No clients match your search criteria'
-                : 'No clients yet. Add your first client to get started!'}
-            </p>
-          </div>
-        )}
       </div>
-    );
-  }
+
+      {/* Clients Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        {filteredClients.map(client => (
+          <SimpleClientCard
+            key={client.id}
+            client={client}
+            clientStats={getClientStats ? getClientStats(client.id) : null}
+            onUpdateStage={updateClientStage}
+            onAddRole={addClientRole}
+            onViewDetails={(client) => {
+              console.log('View details for:', client.name);
+            }}
+            onLogCommunication={(client) => {
+              if (logCommunication) {
+                logCommunication({
+                  clientId: client.id,
+                  type: 'call',
+                  content: `Called ${client.name}`,
+                  direction: 'outbound'
+                });
+              }
+            }}
+            onEditClient={(clientId, updates) => {
+              updateClient(clientId, updates);
+            }}
+            onCreateDeal={(client) => {
+              if (createDeal) {
+                createDeal({
+                  clientId: client.id,
+                  type: 'property_transaction',
+                  stage: 'initial',
+                  value: 0,
+                  probability: 50
+                });
+              }
+            }}
+            // 🔧 CRITICAL: Fixed deal management props
+            onSaveDeal={handleSaveDeal}
+            onDeleteDeal={handleDeleteDeal}
+            onDeleteClient={(clientId) => deleteClient(clientId)}
+            deals={deals} // 🎯 CRITICAL: Pass the deals array from useFirebaseData
+          />
+        ))}
+      </div>
+
+      {filteredClients.length === 0 && (
+        <div className="bg-white rounded-lg border p-8 text-center">
+          <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+          <p className="text-gray-500">
+            {searchTerm || clientFilter !== 'all' 
+              ? 'No clients match your search criteria'
+              : 'No clients yet. Add your first client to get started!'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
   // Leads View
   function LeadsView() {
@@ -838,161 +1021,6 @@ const SimplifiedCRM = () => {
         <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">Calendar View</h3>
         <p className="text-gray-500">Calendar integration coming soon!</p>
-      </div>
-    );
-  }
-
-  // Quick Add Form
-  function QuickAddForm() {
-    const [formType, setFormType] = useState('client');
-    const [formData, setFormData] = useState({
-      name: '',
-      email: '',
-      phone: '',
-      type: 'buyer',
-      source: 'website',
-      notes: ''
-    });
-
-    const handleSubmit = (e) => {
-      e.preventDefault();
-      if (formType === 'client') {
-        addClient(formData);
-      } else {
-        addLead(formData);
-      }
-      setShowAddForm(false);
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        type: 'buyer',
-        source: 'website',
-        notes: ''
-      });
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Add New {formType === 'client' ? 'Client' : 'Lead'}</h3>
-            <button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-gray-600">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="flex gap-2 mb-4">
-            <button
-              onClick={() => setFormType('client')}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${
-                formType === 'client' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              Client
-            </button>
-            <button
-              onClick={() => setFormType('lead')}
-              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium ${
-                formType === 'lead' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
-              }`}
-            >
-              Lead
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-              <select
-                value={formData.type}
-                onChange={(e) => setFormData({...formData, type: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="buyer">Buyer</option>
-                <option value="seller">Seller</option>
-                <option value="landlord">Landlord</option>
-                <option value="tenant">Tenant</option>
-                <option value="investor">Investor</option>
-              </select>
-            </div>
-
-            {formType === 'lead' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
-                <select
-                  value={formData.source}
-                  onChange={(e) => setFormData({...formData, source: e.target.value})}
-                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="website">Website</option>
-                  <option value="referral">Referral</option>
-                  <option value="social">Social Media</option>
-                  <option value="advertising">Advertising</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                Add {formType === 'client' ? 'Client' : 'Lead'}
-              </button>
-            </div>
-          </form>
-        </div>
       </div>
     );
   }
