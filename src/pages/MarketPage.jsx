@@ -1,6 +1,12 @@
 // pages/MarketPage.jsx
 import React from 'react';
-import Card from '../shared/components/ui/Card';
+import MarketImportCsv from '../features/market/components/MarketImportCsv.jsx';
+import MarketTable from '../features/market/components/MarketTable.jsx';
 export default function MarketPage(){
-  return <div className="p-6"><Card title="Market">Board €/m² (form + import CSV). Futuro: leitura assistida</Card></div>;
+  return (
+    <div className="p-6 space-y-4">
+      <MarketImportCsv/>
+      <MarketTable/>
+    </div>
+  );
 }

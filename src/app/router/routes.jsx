@@ -1,30 +1,34 @@
-// app/router/routes.jsx
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import ProtectedRoute from './ProtectedRoute';
-import DashboardPage from '../../pages/DashboardPage';
-import LeadsPage from '../../pages/LeadsPage';
-import ClientsPage from '../../pages/ClientsPage';
-import ClientDetailPage from '../../features/clients/pages/ClientDetailPage';
-import DealsPage from '../../pages/DealsPage';
-import TasksPage from '../../pages/TasksPage';
-import CalendarPage from '../../pages/CalendarPage';
-import MarketPage from '../../pages/MarketPage';
-import LoginPage from '../../LoginPage';
+import ProtectedRoute from './ProtectedRoute.jsx';
+import CRMLayout from '../../shared/layout/CRMLayout.jsx';
+
+import DashboardPage from '../../pages/DashboardPage.jsx';
+import LeadsPage from '../../pages/LeadsPage.jsx';
+import ClientsPage from '../../pages/ClientsPage.jsx';
+import ClientDetailPage from '../../features/clients/pages/ClientDetailPage.jsx';
+import DealsPage from '../../pages/DealsPage.jsx';
+import TasksPage from '../../pages/TasksPage.jsx';
+import CalendarPage from '../../pages/CalendarPage.jsx';
+import MarketPage from '../../pages/MarketPage.jsx';
+import LoginPage from '../../LoginPage.jsx';
 
 export default function AppRoutes(){
   return (
     <Routes>
       <Route path="/login" element={<LoginPage/>} />
-      <Route path="/" element={<ProtectedRoute><DashboardPage/></ProtectedRoute>} />
-      <Route path="/leads" element={<ProtectedRoute><LeadsPage/></ProtectedRoute>} />
-      <Route path="/clients" element={<ProtectedRoute><ClientsPage/></ProtectedRoute>} />
-      <Route path="/clients/:id" element={<ProtectedRoute><ClientDetailPage/></ProtectedRoute>} />
-      <Route path="/deals" element={<ProtectedRoute><DealsPage/></ProtectedRoute>} />
-      <Route path="/tasks" element={<ProtectedRoute><TasksPage/></ProtectedRoute>} />
-      <Route path="/calendar" element={<ProtectedRoute><CalendarPage/></ProtectedRoute>} />
-      <Route path="/market" element={<ProtectedRoute><MarketPage/></ProtectedRoute>} />
-      <Route path="*" element={<Navigate to="/" replace/>} />
+      <Route element={<ProtectedRoute><CRMLayout/></ProtectedRoute>}>
+        <Route path="/" element={<Navigate to="/clients" replace />} />
+        <Route path="/dashboard" element={<DashboardPage/>} />
+        <Route path="/leads" element={<LeadsPage/>} />
+        <Route path="/clients" element={<ClientsPage/>} />
+        <Route path="/clients/:id" element={<ClientDetailPage/>} />
+        <Route path="/deals" element={<DealsPage/>} />
+        <Route path="/tasks" element={<TasksPage/>} />
+        <Route path="/calendar" element={<CalendarPage/>} />
+        <Route path="/market" element={<MarketPage/>} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
