@@ -1,3 +1,4 @@
+// 3) features/clients/components/ClientForm.Basic.jsx — editar dados base + papéis
 import React, { useEffect, useState } from 'react';
 import Button from '../../../shared/components/ui/Button.jsx';
 import { getClient, updateClient } from '../../../services/clients.api.js';

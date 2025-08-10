@@ -1,3 +1,4 @@
+// pages/CalendarPage.jsx (replace placeholder)
 import React, { useEffect, useMemo, useState } from 'react';
 import CalendarMonth from '../features/calendar/components/CalendarMonth.jsx';
 import EventForm from '../features/calendar/components/EventForm.jsx';

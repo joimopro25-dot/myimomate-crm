@@ -1,8 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute.jsx';
-import CRMLayout from '../../shared/layout/CRMLayout.jsx';
-
+import CRMLayout from '../../shared/Layout/CRMLayout.jsx';
 import DashboardPage from '../../pages/DashboardPage.jsx';
 import LeadsPage from '../../pages/LeadsPage.jsx';
 import ClientsPage from '../../pages/ClientsPage.jsx';
@@ -28,7 +27,7 @@ export default function AppRoutes(){
         <Route path="/calendar" element={<CalendarPage/>} />
         <Route path="/market" element={<MarketPage/>} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/" replace/>} />
     </Routes>
   );
 }

@@ -1,3 +1,4 @@
+// 4) features/clients/components/ClientOverview.jsx — usa o form + estatísticas leves
 import React, { useEffect, useState } from 'react';
 import Card from '../../../shared/components/ui/Card.jsx';
 import ClientFormBasic from './ClientForm.Basic.jsx';
@@ -34,3 +35,4 @@ export default function ClientOverview({ clientId }){
     </div>
   );
 }
+

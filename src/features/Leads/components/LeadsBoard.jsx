@@ -1,4 +1,3 @@
-// 5) Real‑time boards (onSnapshot) — replace previous LeadsBoard & DealsBoard if you want live updates
 // features/leads/components/LeadsBoard.jsx
 import React, { useEffect, useState } from 'react';
 import Card from '../../../shared/components/ui/Card.jsx';
