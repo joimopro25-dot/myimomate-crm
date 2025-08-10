@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Button from '../../../shared/components/ui/Button';
 import Card from '../../../shared/components/ui/Card';
-import { listLinks, addLink } from '../../../services/clients.api';
+import { listLinks, addLink } from '../../../services/clients.api.js';
 export default function ClientLinks({ clientId }){
   const [items,setItems]=useState([]);
   const [url,setUrl]=useState('');

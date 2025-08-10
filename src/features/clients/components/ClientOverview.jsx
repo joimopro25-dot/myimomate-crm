@@ -1,4 +1,4 @@
-/ features/clients/components/ClientOverview.jsx
+// features/clients/components/ClientOverview.jsx
 import React from 'react';
 import Card from '../../../shared/components/ui/Card';
 export default function ClientOverview(){
