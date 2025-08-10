@@ -1,6 +1,7 @@
+// app/router/ProtectedRoute.jsx
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAuthState } from "./useAuthState";
+import { useAuthState } from '../useAuthState';
 
 export default function ProtectedRoute({ children }) {
   const { user, loading } = useAuthState();
