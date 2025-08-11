@@ -1,54 +1,77 @@
 // src/services/clients.api.js
-import { db, auth } from '../firebase';
-import { collection, doc, getDocs, getDoc, addDoc, setDoc } from 'firebase/firestore';
+import { db } from "../firebase";
+import {
+  collection, addDoc, getDocs, getDoc,
+  doc, updateDoc, deleteDoc,
+  serverTimestamp, query, orderBy
+} from "firebase/firestore";
 
-function requireUserId() {
-  const uid = auth.currentUser?.uid;
-  if (!uid) throw new Error('Not authenticated');
-  return uid;
-}
-
-function clientsCol() {
-  const uid = requireUserId();
-  return collection(db, 'users', uid, 'clients');
-}
+const coll = collection(db, "clients");
 
 export async function listClients() {
-  const snap = await getDocs(clientsCol());
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-}
-
-export async function getClient(id) {
-  const ref = doc(clientsCol(), id);
-  const s = await getDoc(ref);
-  return s.exists() ? { id: s.id, ...s.data() } : null;
+  // tenta ordenar por createdAt; se não existir índice, cai para getDocs simples
+  try {
+    const q = query(coll, orderBy("createdAt", "desc"));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  } catch {
+    const snap = await getDocs(coll);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
 }
 
 export async function createClient(data) {
-  return addDoc(clientsCol(), { ...data, createdAt: Date.now() });
+  const ref = await addDoc(coll, {
+    name: "",
+    email: "",
+    phone: "",
+    roles: [],              // ["Buyer","Seller","Investor","Landlord","Tenant"]
+    createdAt: serverTimestamp(),
+    ...data,
+  });
+  const snap = await getDoc(ref);
+  return { id: snap.id, ...snap.data() };
+}
+
+export async function getClient(id) {
+  const snap = await getDoc(doc(db, "clients", id));
+  return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
 export async function updateClient(id, data) {
-  const ref = doc(clientsCol(), id);
-  return setDoc(ref, { ...data, updatedAt: Date.now() }, { merge: true });
+  await updateDoc(doc(db, "clients", id), data);
 }
 
-// ---- Subcoleções do cliente ----
-export async function listLinks(clientId) {
-  const uid = requireUserId();
-  const col = collection(db, 'users', uid, 'clients', clientId, 'links');
-  const snap = await getDocs(col);
+export async function deleteClient(id) {
+  await deleteDoc(doc(db, "clients", id));
+}
+// Helpers para subcoleção 'links' de cada cliente
+const clientLinksColl = (clientId) => collection(db, "clients", clientId, "links");
+
+// Listar links de um cliente
+export async function listClientLinks(clientId) {
+  const snap = await getDocs(clientLinksColl(clientId));
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function addLink(clientId, link) {
-  const uid = requireUserId();
-  const col = collection(db, 'users', uid, 'clients', clientId, 'links');
-  return addDoc(col, link);
+// Adicionar link a um cliente
+export async function addLink(clientId, data) {
+  // data: { label, url }
+  const ref = await addDoc(clientLinksColl(clientId), {
+    label: "",
+    url: "",
+    createdAt: serverTimestamp(),
+    ...data,
+  });
+  return ref.id;
 }
 
-export async function saveScenario(clientId, scenario) {
-  const uid = requireUserId();
-  const col = collection(db, 'users', uid, 'clients', clientId, 'scenarios');
-  return addDoc(col, scenario);
+// Atualizar um link
+export async function updateClientLink(clientId, linkId, data) {
+  await updateDoc(doc(db, "clients", clientId, "links", linkId), data);
+}
+
+// Apagar um link
+export async function deleteClientLink(clientId, linkId) {
+  await deleteDoc(doc(db, "clients", clientId, "links", linkId));
 }
