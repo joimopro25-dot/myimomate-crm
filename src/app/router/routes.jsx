@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute.jsx';
 import CRMLayout from '../../shared/Layout/CRMLayout.jsx';
-import DashboardPage from '../../pages/DashboardPage.jsx';
+import Dashboard from '../../pages/Dashboard.jsx';
 import LeadsPage from '../../pages/LeadsPage.jsx';
 import ClientsPage from '../../pages/ClientsPage.jsx';
 import ClientDetailPage from '../../features/clients/pages/ClientDetailPage.jsx';
@@ -18,7 +18,7 @@ export default function AppRoutes(){
       <Route path="/login" element={<LoginPage/>} />
       <Route element={<ProtectedRoute><CRMLayout/></ProtectedRoute>}>
         <Route path="/" element={<Navigate to="/clients" replace />} />
-        <Route path="/dashboard" element={<DashboardPage/>} />
+        <Route path="/dashboard" element={<Dashboard/>} />
         <Route path="/leads" element={<LeadsPage/>} />
         <Route path="/clients" element={<ClientsPage/>} />
         <Route path="/clients/:id" element={<ClientDetailPage/>} />
