@@ -15,7 +15,7 @@ import {
   arrayRemove,
   getDocs 
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db } import { db, auth } from '../../../../shared/services/firebase.js';;
 import { useAuth } from '../AuthContext';
 
 // ✅ HELPER FUNCTION TO SAFELY CONVERT FIREBASE DATES

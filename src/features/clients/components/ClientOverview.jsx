@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Card from '../../../shared/components/ui/Card.jsx';
 import ClientFormBasic from './ClientForm.Basic.jsx';
-import { db, auth } from '../../../firebase';
+import { db, auth } from "../../../../shared/services/firebase.js";
 import { collection, getDocs } from 'firebase/firestore';
 
 export default function ClientOverview({ clientId }){

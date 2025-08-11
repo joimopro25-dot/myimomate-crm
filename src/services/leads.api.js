@@ -1,5 +1,5 @@
 // src/services/leads.api.js
-import { db, auth } from '../firebase';
+import { db, auth } from '../../shared/services/firebase.js';
 import {
   collection, addDoc, getDocs, doc, setDoc, deleteDoc, getDoc,
 } from 'firebase/firestore';

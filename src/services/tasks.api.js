@@ -1,5 +1,5 @@
 // services/tasks.api.js
-import { db, auth } from '../firebase';
+import { db, auth } from '../../shared/services/firebase.js';
 import { collection, addDoc, getDocs, query, where, doc, setDoc, deleteDoc, orderBy } from 'firebase/firestore';
 const base=()=>collection(db,'users',auth.currentUser.uid,'tasks');
 export async function listTasks({ status, from, to }={}){

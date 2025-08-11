@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import Card from '../../../shared/components/ui/Card.jsx';
 import Button from '../../../shared/components/ui/Button.jsx';
-import { db, auth } from '../../../firebase';
+import { db, auth } from '../../../shared/services/firebase.js';
 import { collection, onSnapshot, addDoc, doc, setDoc, deleteDoc } from 'firebase/firestore';
 
 const STAGES = ['New','Contacted','Qualified','Converted'];

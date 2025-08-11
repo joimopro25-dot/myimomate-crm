@@ -1,5 +1,5 @@
 // services/events.api.js (enhance with range + realtime)
-import { db, auth } from '../firebase';
+import { db, auth } from '../../shared/services/firebase.js';
 import { collection, addDoc, getDocs, query, where, onSnapshot } from 'firebase/firestore';
 const base=()=>collection(db,'users',auth.currentUser.uid,'events');
 export async function listEvents(){ const s=await getDocs(base()); return s.docs.map(d=>({id:d.id,...d.data()})); }

@@ -1,6 +1,6 @@
 // LoginPage.jsx - Fixed Enhanced Version
 import React, { useState } from 'react';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../providers/AuthProvider.jsx';
 import { Eye, EyeOff, Mail, Lock, User, Building2, MapPin, Phone, Globe, Award } from 'lucide-react';
 
 const LoginPage = () => {

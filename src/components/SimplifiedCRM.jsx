@@ -28,7 +28,7 @@ import SimpleClientCard from './SimpleClientCard';
 import ExpandedClientForm from './ExpandedClientForm'; // ADD THIS IMPORT
 
 // ADD FIREBASE IMPORTS FOR DEAL MANAGEMENT
-import { db } from '../firebase';
+import { db } import { db, auth } from '../../../../shared/services/firebase.js';;
 import { 
   collection, 
   addDoc, 

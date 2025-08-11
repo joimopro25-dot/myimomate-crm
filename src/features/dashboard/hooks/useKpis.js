@@ -1,9 +1,8 @@
 // src/features/dashboard/hooks/useKpis.js
 import { useEffect, useState } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../../firebase";
-
-// Helper para ler timestamp (Firestore Timestamp ou Date)
+// CAMINHO CORRETO:
+import { db } from "../../../../shared/services/firebase.js";// Helper para ler timestamp (Firestore Timestamp ou Date)
 function toDate(ts) {
   if (!ts) return null;
   if (typeof ts.toDate === "function") return ts.toDate();
