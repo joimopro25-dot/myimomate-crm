@@ -10,7 +10,7 @@ import DealsPage from '../../pages/DealsPage.jsx';
 import TasksPage from '../../pages/TasksPage.jsx';
 import CalendarPage from '../../pages/CalendarPage.jsx';
 import MarketPage from '../../pages/MarketPage.jsx';
-import LoginPage from '../../LoginPage.jsx';
+import LoginPage from '../../features/auth/pages/LoginPage.jsx';
 
 export default function AppRoutes(){
   return (
