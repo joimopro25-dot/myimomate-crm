@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 // import { InvestmentCalculator } from '../utils/InvestmentCalculator';
 import MarketDataBoard from './MarketDataBoard';
+import { computeInvestorMetrics } from "../../features/deals/lib/investorMath";
 
 const InvestorDealModal = ({ 
   isOpen, 
@@ -203,6 +204,8 @@ const InvestorDealModal = ({
           </button>
         </div>
 
+          const calculations = computeInvestorMetrics(formData);
+          
         {/* Tab Navigation */}
         <div className="border-b bg-gray-50">
           <div className="flex overflow-x-auto">
