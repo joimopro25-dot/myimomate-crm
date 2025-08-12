@@ -1,7 +1,7 @@
 // =========================================
-// 🎨 COMPONENT - ClientForm CORRIGIDO
+// 🎨 COMPONENT - ClientForm DEFINITIVAMENTE CORRIGIDO
 // =========================================
-// CORREÇÃO: Imports corretos
+// CORREÇÃO FINAL: FormField importado + useClientForm corrigido
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,7 +32,8 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-import { useClientForm } from '../../hooks/useClientForm'; // 🔧 IMPORT CORRETO
+import { useClientForm } from '../../hooks/useClientForm';
+import FormField from './FormField'; // 🔧 IMPORT DO COMPONENTE SEPARADO
 import { 
   EstadoCivil, 
   EstadoCivilLabels,
@@ -47,12 +48,11 @@ import {
 } from '../../types/enums';
 
 /**
- * ClientForm - O formulário mais inteligente e cativante
- * Transforma criação de clientes numa experiência envolvente
+ * ClientForm - Formulário corrigido definitivamente
  */
 const ClientForm = ({ 
   initialData = null,
-  mode = 'create', // 'create' | 'edit'
+  mode = 'create',
   onSuccess,
   onCancel,
   className = ''
@@ -143,7 +143,6 @@ const ClientForm = ({
   const ProgressHeader = () => (
     <div className="bg-white border-b border-gray-200 p-6">
       <div className="max-w-4xl mx-auto">
-        {/* Progress Bar */}
         <div className="mb-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-2xl font-bold text-gray-900">
@@ -154,7 +153,6 @@ const ClientForm = ({
             </div>
           </div>
           
-          {/* Progress Steps */}
           <div className="flex items-center gap-4">
             {steps.map((step, index) => (
               <div key={step.id} className="flex items-center gap-4">
@@ -198,7 +196,6 @@ const ClientForm = ({
             ))}
           </div>
           
-          {/* Animated Progress Bar */}
           <div className="mt-4 bg-gray-200 rounded-full h-2 overflow-hidden">
             <motion.div
               className={`h-full ${getProgressGradient(currentStepConfig.color)}`}
@@ -209,7 +206,6 @@ const ClientForm = ({
           </div>
         </div>
         
-        {/* Step Header */}
         <motion.div
           key={currentStep}
           initial={{ opacity: 0, y: 20 }}
@@ -230,103 +226,6 @@ const ClientForm = ({
       </div>
     </div>
   );
-
-  // 🔧 FORMFIELD EXTRAÍDO E MEMORIZADO
-  const FormField = React.memo(({ 
-    label, 
-    name, 
-    type = 'text', 
-    required = false, 
-    placeholder,
-    icon: Icon,
-    help,
-    value,
-    onChange,
-    options = [],
-    className = ''
-  }) => {
-    const error = errors[name];
-    const hasError = !!error;
-
-    return (
-      <div className={`space-y-2 ${className}`}>
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          {Icon && <Icon className="w-4 h-4" />}
-          <span>{label}</span>
-          {required && <span className="text-red-500">*</span>}
-        </label>
-        
-        <div className="relative">
-          {type === 'select' ? (
-            <select
-              value={value || ''}
-              onChange={(e) => onChange(e.target.value)}
-              className={`
-                w-full px-4 py-3 border rounded-xl focus:ring-2 transition-all
-                ${hasError 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                }
-              `}
-            >
-              <option value="">{placeholder}</option>
-              {options.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          ) : type === 'textarea' ? (
-            <textarea
-              value={value || ''}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              rows={4}
-              className={`
-                w-full px-4 py-3 border rounded-xl focus:ring-2 transition-all resize-none
-                ${hasError 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                }
-              `}
-            />
-          ) : (
-            <input
-              type={type}
-              value={value || ''}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              className={`
-                w-full px-4 py-3 border rounded-xl focus:ring-2 transition-all
-                ${hasError 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                }
-              `}
-            />
-          )}
-        </div>
-        
-        {help && !hasError && (
-          <p className="text-xs text-gray-500 flex items-center gap-1">
-            <Info className="w-3 h-3" />
-            {help}
-          </p>
-        )}
-        
-        {hasError && (
-          <motion.p
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-xs text-red-600 flex items-center gap-1"
-          >
-            <AlertCircle className="w-3 h-3" />
-            {Array.isArray(error) ? error.join(', ') : error}
-          </motion.p>
-        )}
-      </div>
-    );
-  });
 
   // =========================================
   // 📝 STEP COMPONENTS
@@ -349,6 +248,7 @@ const ClientForm = ({
           placeholder="Ex: João Silva Santos"
           value={formData.dadosPessoais.nome}
           onChange={(value) => updateField('dadosPessoais.nome', value)}
+          error={errors['dadosPessoais.nome']}
           help="Nome completo como aparece no documento de identificação"
         />
         
@@ -361,6 +261,7 @@ const ClientForm = ({
           placeholder="joao@exemplo.com"
           value={formData.dadosPessoais.email}
           onChange={(value) => updateField('dadosPessoais.email', value)}
+          error={errors['dadosPessoais.email']}
         />
         
         <FormField
@@ -372,6 +273,7 @@ const ClientForm = ({
           placeholder="+351 912 345 678"
           value={formData.dadosPessoais.telefone}
           onChange={(value) => updateField('dadosPessoais.telefone', value)}
+          error={errors['dadosPessoais.telefone']}
           help="Formato: +351 XXX XXX XXX"
         />
         
@@ -382,6 +284,7 @@ const ClientForm = ({
           icon={Calendar}
           value={formData.dadosPessoais.dataNascimento}
           onChange={(value) => updateField('dadosPessoais.dataNascimento', value)}
+          error={errors['dadosPessoais.dataNascimento']}
         />
         
         <FormField
@@ -391,6 +294,7 @@ const ClientForm = ({
           placeholder="123 456 789"
           value={formData.dadosPessoais.nif}
           onChange={(value) => updateField('dadosPessoais.nif', value)}
+          error={errors['dadosPessoais.nif']}
           help="Número de Identificação Fiscal"
         />
         
@@ -399,6 +303,7 @@ const ClientForm = ({
           name="dadosPessoais.nacionalidade"
           value={formData.dadosPessoais.nacionalidade}
           onChange={(value) => updateField('dadosPessoais.nacionalidade', value)}
+          error={errors['dadosPessoais.nacionalidade']}
           placeholder="Portuguesa"
         />
       </div>
@@ -410,6 +315,7 @@ const ClientForm = ({
         placeholder="Rua das Flores, 123, 4º Esq, 1000-100 Lisboa"
         value={formData.dadosPessoais.morada}
         onChange={(value) => updateField('dadosPessoais.morada', value)}
+        error={errors['dadosPessoais.morada']}
         help="Morada completa com código postal"
       />
     </motion.div>
@@ -430,6 +336,7 @@ const ClientForm = ({
         icon={Heart}
         value={formData.dadosPessoais.estadoCivil}
         onChange={(value) => updateField('dadosPessoais.estadoCivil', value)}
+        error={errors['dadosPessoais.estadoCivil']}
         options={Object.entries(EstadoCivilLabels).map(([key, label]) => ({
           value: key,
           label
@@ -459,6 +366,7 @@ const ClientForm = ({
                 placeholder="Maria Silva Santos"
                 value={formData.conjuge.nome}
                 onChange={(value) => updateField('conjuge.nome', value)}
+                error={errors['conjuge.nome']}
               />
               
               <FormField
@@ -469,6 +377,7 @@ const ClientForm = ({
                 placeholder="maria@exemplo.com"
                 value={formData.conjuge.email}
                 onChange={(value) => updateField('conjuge.email', value)}
+                error={errors['conjuge.email']}
               />
               
               <FormField
@@ -479,6 +388,7 @@ const ClientForm = ({
                 placeholder="+351 913 456 789"
                 value={formData.conjuge.telefone}
                 onChange={(value) => updateField('conjuge.telefone', value)}
+                error={errors['conjuge.telefone']}
               />
               
               <FormField
@@ -488,6 +398,7 @@ const ClientForm = ({
                 placeholder="987 654 321"
                 value={formData.conjuge.nif}
                 onChange={(value) => updateField('conjuge.nif', value)}
+                error={errors['conjuge.nif']}
               />
             </div>
             
@@ -499,6 +410,7 @@ const ClientForm = ({
               icon={Heart}
               value={formData.comunhaoBens}
               onChange={(value) => updateField('comunhaoBens', value)}
+              error={errors['comunhaoBens']}
               options={Object.entries(ComunhaoBensLabels).map(([key, label]) => ({
                 value: key,
                 label
@@ -538,6 +450,7 @@ const ClientForm = ({
           placeholder="Ex: Millennium BCP"
           value={formData.dadosBancarios.banco}
           onChange={(value) => updateField('dadosBancarios.banco', value)}
+          error={errors['dadosBancarios.banco']}
         />
         
         <FormField
@@ -547,6 +460,7 @@ const ClientForm = ({
           placeholder="Nome do titular"
           value={formData.dadosBancarios.titular}
           onChange={(value) => updateField('dadosBancarios.titular', value)}
+          error={errors['dadosBancarios.titular']}
         />
       </div>
       
@@ -557,6 +471,7 @@ const ClientForm = ({
         placeholder="PT50 0000 0000 0000 0000 0000 0"
         value={formData.dadosBancarios.iban}
         onChange={(value) => updateField('dadosBancarios.iban', value)}
+        error={errors['dadosBancarios.iban']}
         help="Formato: PT50 seguido de 19 dígitos"
       />
     </motion.div>
@@ -588,6 +503,7 @@ const ClientForm = ({
             <label key={pref.key} className="flex items-center gap-3 p-3 rounded-xl hover:bg-purple-100 transition-colors cursor-pointer">
               <input
                 type="checkbox"
+                name={`comunicacoes.${pref.key}`}
                 checked={formData.comunicacoes[pref.key] || false}
                 onChange={(e) => updateField(`comunicacoes.${pref.key}`, e.target.checked)}
                 className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
@@ -636,6 +552,7 @@ const ClientForm = ({
               >
                 <input
                   type="checkbox"
+                  name={`roles.${key}`}
                   checked={isSelected}
                   onChange={(e) => {
                     const currentRoles = formData.roles || [];
@@ -658,6 +575,7 @@ const ClientForm = ({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-xs text-red-600 flex items-center gap-1"
+            role="alert"
           >
             <AlertCircle className="w-3 h-3" />
             {Array.isArray(errors.roles) ? errors.roles.join(', ') : errors.roles}
@@ -672,6 +590,7 @@ const ClientForm = ({
         icon={Target}
         value={formData.origem}
         onChange={(value) => updateField('origem', value)}
+        error={errors['origem']}
         options={Object.entries(ClientSourceLabels).map(([key, label]) => ({
           value: key,
           label
@@ -687,6 +606,7 @@ const ClientForm = ({
         placeholder="Adicione notas ou observações sobre este cliente..."
         value={formData.notas}
         onChange={(value) => updateField('notas', value)}
+        error={errors['notas']}
       />
     </motion.div>
   );
@@ -701,8 +621,7 @@ const ClientForm = ({
     setIsAnimating(false);
     
     if (!success) {
-      // Scroll para o primeiro erro
-      const firstError = document.querySelector('.text-red-600');
+      const firstError = document.querySelector('[role="alert"]');
       if (firstError) {
         firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
