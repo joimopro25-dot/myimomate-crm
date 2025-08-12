@@ -1,62 +1,80 @@
 // =========================================
-// 📄 FIREBASE SERVICE - DOCUMENTOS
+// 📄 DOCUMENTS SERVICE - FIREBASE STORAGE
 // =========================================
-// Service para gestão de documentos no Firebase Storage
-// Upload, download, organização e metadados
+// Service completo para gestão de documentos dos clientes
+// Firebase Storage + Firestore metadata
 
 import { 
   ref, 
-  uploadBytes, 
   uploadBytesResumable, 
   getDownloadURL, 
-  deleteObject, 
+  deleteObject,
   listAll,
   getMetadata
 } from 'firebase/storage';
-import { 
-  doc, 
-  updateDoc, 
-  arrayUnion, 
-  arrayRemove, 
-  serverTimestamp 
+
+import {
+  doc,
+  collection,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  getDocs,
+  getDoc,
+  query,
+  where,
+  orderBy,
+  serverTimestamp
 } from 'firebase/firestore';
-import { storage, db } from '@/shared/services/firebase/config';
-import { DocumentCategory, FILE_LIMITS } from '../types/enums';
+
+import { storage, db, getUserStoragePath, getUserCollection } from '@/shared/services/firebase/config';
 
 // =========================================
-// 🏗️ CONFIGURAÇÕES BASE
+// 🎯 CONFIGURAÇÕES E CONSTANTES
 // =========================================
 
-const STORAGE_PATHS = {
-  DOCUMENTS: 'documents',
-  TEMP: 'temp',
-  THUMBNAILS: 'thumbnails'
+export const DocumentCategory = {
+  IDENTIDADE: 'identidade',
+  FINANCEIRO: 'financeiro',
+  JURIDICO: 'juridico',
+  IMOVEL: 'imovel',
+  CONTRATO: 'contrato',
+  OUTROS: 'outros'
 };
 
-/**
- * Obter path do storage para documento do cliente
- */
-const getDocumentPath = (userId, clientId, fileName) => {
-  return `users/${userId}/${STORAGE_PATHS.DOCUMENTS}/${clientId}/${fileName}`;
+export const DocumentStatus = {
+  UPLOADING: 'uploading',
+  UPLOADED: 'uploaded',
+  PROCESSING: 'processing',
+  READY: 'ready',
+  ERROR: 'error'
 };
 
-/**
- * Obter path do storage para thumbnail
- */
-const getThumbnailPath = (userId, clientId, fileName) => {
-  const nameWithoutExt = fileName.split('.').slice(0, -1).join('.');
-  return `users/${userId}/${STORAGE_PATHS.THUMBNAILS}/${clientId}/${nameWithoutExt}_thumb.jpg`;
+// Tipos de arquivo permitidos
+export const ALLOWED_FILE_TYPES = {
+  // Documentos
+  'application/pdf': { ext: '.pdf', icon: '📄', maxSize: 10 },
+  'application/msword': { ext: '.doc', icon: '📝', maxSize: 10 },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': { ext: '.docx', icon: '📝', maxSize: 10 },
+  
+  // Imagens
+  'image/jpeg': { ext: '.jpg', icon: '🖼️', maxSize: 5 },
+  'image/png': { ext: '.png', icon: '🖼️', maxSize: 5 },
+  'image/webp': { ext: '.webp', icon: '🖼️', maxSize: 5 },
+  
+  // Planilhas
+  'application/vnd.ms-excel': { ext: '.xls', icon: '📊', maxSize: 10 },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': { ext: '.xlsx', icon: '📊', maxSize: 10 },
+  
+  // Outros
+  'text/plain': { ext: '.txt', icon: '📋', maxSize: 1 }
 };
 
-/**
- * Obter referência da coleção de clientes
- */
-const getClientDoc = (userId, clientId) => {
-  return doc(db, 'users', userId, 'clients', clientId);
-};
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILES_PER_UPLOAD = 10;
 
 // =========================================
-// 🔍 VALIDAÇÃO DE ARQUIVOS
+// 🔍 UTILITY FUNCTIONS
 // =========================================
 
 /**
@@ -65,14 +83,21 @@ const getClientDoc = (userId, clientId) => {
 export const validateFile = (file) => {
   const errors = [];
   
-  // Verificar tamanho
-  if (file.size > FILE_LIMITS.MAX_SIZE) {
-    errors.push(`Arquivo muito grande. Máximo: ${formatFileSize(FILE_LIMITS.MAX_SIZE)}`);
+  // Verificar se é um arquivo
+  if (!file || !(file instanceof File)) {
+    errors.push('Arquivo inválido');
+    return { isValid: false, errors };
   }
   
   // Verificar tipo
-  if (!FILE_LIMITS.ALLOWED_TYPES.includes(file.type)) {
-    errors.push('Tipo de arquivo não permitido');
+  const allowedType = ALLOWED_FILE_TYPES[file.type];
+  if (!allowedType) {
+    errors.push(`Tipo de arquivo não permitido: ${file.type}`);
+  }
+  
+  // Verificar tamanho
+  if (file.size > MAX_FILE_SIZE) {
+    errors.push(`Arquivo muito grande. Máximo: ${MAX_FILE_SIZE / 1024 / 1024}MB`);
   }
   
   // Verificar nome
@@ -81,136 +106,188 @@ export const validateFile = (file) => {
   }
   
   return {
-    valid: errors.length === 0,
-    errors
+    isValid: errors.length === 0,
+    errors,
+    fileInfo: allowedType
   };
 };
 
 /**
- * Gerar nome único para arquivo
+ * Gerar nome único para o arquivo
  */
-const generateUniqueFileName = (originalName) => {
+export const generateUniqueFileName = (originalName, clientId) => {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 8);
   const extension = originalName.split('.').pop();
-  const nameWithoutExt = originalName.split('.').slice(0, -1).join('.');
+  const nameWithoutExt = originalName.replace(/\.[^/.]+$/, '');
+  const safeName = nameWithoutExt.replace(/[^a-zA-Z0-9_-]/g, '_');
   
-  return `${nameWithoutExt}_${timestamp}_${random}.${extension}`;
+  return `${clientId}_${timestamp}_${random}_${safeName}.${extension}`;
 };
 
 /**
- * Categorizar documento automaticamente baseado no nome
+ * Verificar se é arquivo de imagem
  */
-export const categorizeDocument = (fileName) => {
-  const nameLower = fileName.toLowerCase();
-  
-  if (nameLower.includes('cartao') || nameLower.includes('cc') || nameLower.includes('cidadao')) {
-    return DocumentCategory.CARTAO_CIDADAO;
+export const isImageFile = (file) => {
+  if (typeof file === 'string') {
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(file);
+  }
+  return file?.type?.startsWith('image/');
+};
+
+/**
+ * Verificar se é documento
+ */
+export const isDocumentFile = (file) => {
+  if (typeof file === 'string') {
+    return /\.(pdf|doc|docx|txt)$/i.test(file);
+  }
+  return file?.type?.includes('pdf') || 
+         file?.type?.includes('document') || 
+         file?.type?.includes('text');
+};
+
+/**
+ * Obter ícone do arquivo baseado no tipo
+ */
+export const getFileIcon = (fileName, mimeType) => {
+  if (mimeType && ALLOWED_FILE_TYPES[mimeType]) {
+    return ALLOWED_FILE_TYPES[mimeType].icon;
   }
   
-  if (nameLower.includes('nif') || nameLower.includes('contribuinte')) {
-    return DocumentCategory.NIF;
+  const ext = fileName?.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'pdf': return '📄';
+    case 'doc':
+    case 'docx': return '📝';
+    case 'xls':
+    case 'xlsx': return '📊';
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'webp': return '🖼️';
+    default: return '📋';
   }
-  
-  if (nameLower.includes('morada') || nameLower.includes('residencia') || nameLower.includes('comprovativo')) {
-    return DocumentCategory.COMPROVATIVO_MORADA;
-  }
-  
-  if (nameLower.includes('iban') || nameLower.includes('banco') || nameLower.includes('conta')) {
-    return DocumentCategory.COMPROVATIVO_IBAN;
-  }
-  
-  if (nameLower.includes('salario') || nameLower.includes('vencimento') || nameLower.includes('rendimento')) {
-    return DocumentCategory.COMPROVATIVO_RENDIMENTOS;
-  }
-  
-  if (nameLower.includes('contrato')) {
-    return DocumentCategory.CONTRATO;
-  }
-  
-  return DocumentCategory.OUTROS;
+};
+
+/**
+ * Formatar tamanho do arquivo
+ */
+export const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
 // =========================================
-// 🔥 OPERAÇÕES DE UPLOAD
+// 📤 OPERAÇÕES DE UPLOAD
 // =========================================
 
 /**
- * Upload de documento com progress tracking
+ * Upload de documento único
  */
-export const uploadDocument = async (userId, clientId, file, options = {}) => {
+export const uploadDocument = async (userId, clientId, file, categoria = DocumentCategory.OUTROS, onProgress = null) => {
   try {
-    const {
-      categoria = categorizeDocument(file.name),
-      onProgress = null,
-      generateThumbnail = false
-    } = options;
+    // Validar parâmetros
+    if (!userId || !clientId || !file) {
+      throw new Error('Parâmetros obrigatórios: userId, clientId, file');
+    }
     
     // Validar arquivo
     const validation = validateFile(file);
-    if (!validation.valid) {
-      throw new Error(validation.errors.join(', '));
+    if (!validation.isValid) {
+      throw new Error(`Arquivo inválido: ${validation.errors.join(', ')}`);
     }
     
     // Gerar nome único
-    const uniqueFileName = generateUniqueFileName(file.name);
-    const storagePath = getDocumentPath(userId, clientId, uniqueFileName);
+    const uniqueFileName = generateUniqueFileName(file.name, clientId);
+    const storagePath = `${getUserStoragePath(userId, 'documents')}/${clientId}/${categoria}/${uniqueFileName}`;
+    
+    // Criar referência no Storage
     const storageRef = ref(storage, storagePath);
     
+    // Metadados do arquivo
+    const metadata = {
+      contentType: file.type,
+      customMetadata: {
+        originalName: file.name,
+        clientId: clientId,
+        categoria: categoria,
+        uploadedBy: userId,
+        uploadedAt: new Date().toISOString()
+      }
+    };
+    
     // Upload com progress tracking
-    const uploadTask = uploadBytesResumable(storageRef, file);
+    const uploadTask = uploadBytesResumable(storageRef, file, metadata);
     
     return new Promise((resolve, reject) => {
       uploadTask.on(
         'state_changed',
+        // Progress callback
         (snapshot) => {
-          // Progress callback
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
           if (onProgress) {
-            onProgress(progress);
+            onProgress({
+              progress: Math.round(progress),
+              bytesTransferred: snapshot.bytesTransferred,
+              totalBytes: snapshot.totalBytes,
+              state: snapshot.state
+            });
           }
         },
+        // Error callback
         (error) => {
-          // Error callback
           console.error('Erro no upload:', error);
           reject(new Error(`Falha no upload: ${error.message}`));
         },
+        // Success callback
         async () => {
           try {
-            // Success callback
+            // Obter URL de download
             const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            const metadata = await getMetadata(uploadTask.snapshot.ref);
             
-            // Criar objeto documento
+            // Criar documento no Firestore
             const documentData = {
-              id: `doc_${Date.now()}`,
+              id: uniqueFileName.split('.')[0], // ID único sem extensão
               nome: file.name,
               nomeUnico: uniqueFileName,
-              categoria,
+              categoria: categoria,
               tipo: file.type,
               tamanho: file.size,
               url: downloadURL,
-              storagePath,
-              uploadedAt: serverTimestamp(),
+              storagePath: storagePath,
+              clientId: clientId,
+              status: DocumentStatus.READY,
               uploadedBy: userId,
+              uploadedAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
               metadata: {
-                contentType: metadata.contentType,
-                timeCreated: metadata.timeCreated,
-                updated: metadata.updated
+                originalName: file.name,
+                fileExtension: file.name.split('.').pop(),
+                isImage: isImageFile(file),
+                isDocument: isDocumentFile(file),
+                icon: getFileIcon(file.name, file.type),
+                sizeFormatted: formatFileSize(file.size)
               }
             };
             
-            // Atualizar documento do cliente no Firestore
-            const clientDocRef = getClientDoc(userId, clientId);
-            await updateDoc(clientDocRef, {
-              documentos: arrayUnion(documentData),
-              updatedAt: serverTimestamp(),
-              updatedBy: userId
-            });
+            // Salvar metadados no Firestore
+            const documentsCollection = collection(db, getUserCollection(userId, 'documents'));
+            const docRef = await addDoc(documentsCollection, documentData);
             
-            resolve(documentData);
+            const finalDocument = {
+              ...documentData,
+              id: docRef.id,
+              firestoreId: docRef.id
+            };
+            
+            resolve(finalDocument);
             
           } catch (error) {
+            console.error('Erro ao salvar metadados:', error);
             reject(new Error(`Falha ao salvar metadados: ${error.message}`));
           }
         }
@@ -218,7 +295,7 @@ export const uploadDocument = async (userId, clientId, file, options = {}) => {
     });
     
   } catch (error) {
-    console.error('Erro no upload de documento:', error);
+    console.error('Erro no uploadDocument:', error);
     throw new Error(`Falha no upload: ${error.message}`);
   }
 };
@@ -226,29 +303,42 @@ export const uploadDocument = async (userId, clientId, file, options = {}) => {
 /**
  * Upload múltiplo de documentos
  */
-export const uploadMultipleDocuments = async (userId, clientId, files, options = {}) => {
+export const uploadMultipleDocuments = async (userId, clientId, files, categoria = DocumentCategory.OUTROS, callbacks = {}) => {
   try {
-    const {
-      onProgress = null,
-      onFileComplete = null
-    } = options;
+    const { onProgress, onFileComplete, onAllComplete } = callbacks;
+    
+    // Validar parâmetros
+    if (!userId || !clientId || !files || files.length === 0) {
+      throw new Error('Parâmetros inválidos');
+    }
+    
+    // Verificar limite de arquivos
+    if (files.length > MAX_FILES_PER_UPLOAD) {
+      throw new Error(`Máximo ${MAX_FILES_PER_UPLOAD} arquivos por upload`);
+    }
     
     const results = [];
     const errors = [];
-    let totalProgress = 0;
     
+    // Upload sequencial para melhor controle
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       
       try {
-        const result = await uploadDocument(userId, clientId, file, {
-          onProgress: (progress) => {
-            const fileProgress = progress / files.length;
-            const currentTotal = (i * 100 + progress) / files.length;
-            
-            if (onProgress) {
-              onProgress(currentTotal);
-            }
+        const result = await uploadDocument(userId, clientId, file, categoria, (progress) => {
+          const fileProgress = progress.progress / files.length;
+          const currentTotal = (i * 100 + progress.progress) / files.length;
+          
+          if (onProgress) {
+            onProgress({
+              currentFile: i + 1,
+              totalFiles: files.length,
+              fileName: file.name,
+              fileProgress: progress.progress,
+              totalProgress: Math.round(currentTotal),
+              bytesTransferred: progress.bytesTransferred,
+              totalBytes: progress.totalBytes
+            });
           }
         });
         
@@ -259,7 +349,12 @@ export const uploadMultipleDocuments = async (userId, clientId, files, options =
         }
         
       } catch (error) {
-        errors.push({ fileName: file.name, error: error.message });
+        const errorInfo = { 
+          fileName: file.name, 
+          error: error.message,
+          index: i 
+        };
+        errors.push(errorInfo);
         
         if (onFileComplete) {
           onFileComplete(file.name, null, error.message);
@@ -267,12 +362,19 @@ export const uploadMultipleDocuments = async (userId, clientId, files, options =
       }
     }
     
-    return {
+    const finalResult = {
       success: results,
       errors,
       totalUploaded: results.length,
-      totalFailed: errors.length
+      totalFailed: errors.length,
+      totalFiles: files.length
     };
+    
+    if (onAllComplete) {
+      onAllComplete(finalResult);
+    }
+    
+    return finalResult;
     
   } catch (error) {
     console.error('Erro no upload múltiplo:', error);
@@ -281,23 +383,105 @@ export const uploadMultipleDocuments = async (userId, clientId, files, options =
 };
 
 // =========================================
-// 📥 OPERAÇÕES DE DOWNLOAD
+// 📥 OPERAÇÕES DE LISTAGEM E DOWNLOAD
 // =========================================
 
 /**
- * Obter URL de download temporária
+ * Listar documentos de um cliente
  */
-export const getDownloadUrl = async (userId, clientId, documentId) => {
+export const getClientDocuments = async (userId, clientId, filters = {}) => {
   try {
-    // Esta operação já retorna a URL permanente do Firebase
-    // Para URLs temporárias, usaríamos Cloud Functions
+    if (!userId || !clientId) {
+      throw new Error('userId e clientId são obrigatórios');
+    }
     
-    // Por agora, retornamos a URL permanente que já está salva
-    // Em produção, consideraria implementar Cloud Functions para URLs assinadas
+    const documentsCollection = collection(db, getUserCollection(userId, 'documents'));
+    
+    // Construir query
+    let q = query(
+      documentsCollection,
+      where('clientId', '==', clientId),
+      orderBy('uploadedAt', 'desc')
+    );
+    
+    // Aplicar filtros
+    if (filters.categoria) {
+      q = query(q, where('categoria', '==', filters.categoria));
+    }
+    
+    if (filters.tipo) {
+      q = query(q, where('tipo', '==', filters.tipo));
+    }
+    
+    // Executar query
+    const snapshot = await getDocs(q);
+    
+    const documents = [];
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      documents.push({
+        ...data,
+        id: doc.id,
+        firestoreId: doc.id,
+        uploadedAt: data.uploadedAt?.toDate(),
+        updatedAt: data.updatedAt?.toDate()
+      });
+    });
+    
+    return documents;
+    
+  } catch (error) {
+    console.error('Erro ao listar documentos:', error);
+    throw new Error(`Falha ao carregar documentos: ${error.message}`);
+  }
+};
+
+/**
+ * Obter documento específico
+ */
+export const getDocument = async (userId, documentId) => {
+  try {
+    if (!userId || !documentId) {
+      throw new Error('userId e documentId são obrigatórios');
+    }
+    
+    const docRef = doc(db, getUserCollection(userId, 'documents'), documentId);
+    const docSnap = await getDoc(docRef);
+    
+    if (!docSnap.exists()) {
+      throw new Error('Documento não encontrado');
+    }
+    
+    const data = docSnap.data();
+    return {
+      ...data,
+      id: docSnap.id,
+      uploadedAt: data.uploadedAt?.toDate(),
+      updatedAt: data.updatedAt?.toDate()
+    };
+    
+  } catch (error) {
+    console.error('Erro ao buscar documento:', error);
+    throw new Error(`Falha ao carregar documento: ${error.message}`);
+  }
+};
+
+/**
+ * Obter URL de download (já está disponível nos metadados)
+ */
+export const getDownloadUrl = async (userId, documentId) => {
+  try {
+    const document = await getDocument(userId, documentId);
+    
+    if (!document.url) {
+      throw new Error('URL de download não disponível');
+    }
     
     return {
-      url: documentData.url, // URL já está disponível nos metadados
-      expires: new Date(Date.now() + 3600000).toISOString() // 1 hora
+      url: document.url,
+      fileName: document.nome,
+      contentType: document.tipo,
+      size: document.tamanho
     };
     
   } catch (error) {
@@ -313,21 +497,30 @@ export const getDownloadUrl = async (userId, clientId, documentId) => {
 /**
  * Deletar documento
  */
-export const deleteDocument = async (userId, clientId, documentData) => {
+export const deleteDocument = async (userId, documentId) => {
   try {
+    if (!userId || !documentId) {
+      throw new Error('userId e documentId são obrigatórios');
+    }
+    
+    // Buscar dados do documento
+    const documentData = await getDocument(userId, documentId);
+    
     // Deletar do Storage
-    const storageRef = ref(storage, documentData.storagePath);
-    await deleteObject(storageRef);
+    if (documentData.storagePath) {
+      const storageRef = ref(storage, documentData.storagePath);
+      await deleteObject(storageRef);
+    }
     
-    // Remover do Firestore
-    const clientDocRef = getClientDoc(userId, clientId);
-    await updateDoc(clientDocRef, {
-      documentos: arrayRemove(documentData),
-      updatedAt: serverTimestamp(),
-      updatedBy: userId
-    });
+    // Deletar metadados do Firestore
+    const docRef = doc(db, getUserCollection(userId, 'documents'), documentId);
+    await deleteDoc(docRef);
     
-    return { success: true, message: 'Documento deletado com sucesso' };
+    return { 
+      success: true, 
+      message: 'Documento deletado com sucesso',
+      deletedDocument: documentData
+    };
     
   } catch (error) {
     console.error('Erro ao deletar documento:', error);
@@ -338,17 +531,25 @@ export const deleteDocument = async (userId, clientId, documentData) => {
 /**
  * Deletar múltiplos documentos
  */
-export const deleteMultipleDocuments = async (userId, clientId, documentsData) => {
+export const deleteMultipleDocuments = async (userId, documentIds) => {
   try {
+    if (!userId || !documentIds || documentIds.length === 0) {
+      throw new Error('Parâmetros inválidos');
+    }
+    
     const results = [];
     const errors = [];
     
-    for (const documentData of documentsData) {
+    // Deletar sequencialmente
+    for (const documentId of documentIds) {
       try {
-        await deleteDocument(userId, clientId, documentData);
-        results.push(documentData.nome);
+        const result = await deleteDocument(userId, documentId);
+        results.push({ documentId, ...result });
       } catch (error) {
-        errors.push({ fileName: documentData.nome, error: error.message });
+        errors.push({ 
+          documentId, 
+          error: error.message 
+        });
       }
     }
     
@@ -356,162 +557,462 @@ export const deleteMultipleDocuments = async (userId, clientId, documentsData) =
       success: results,
       errors,
       totalDeleted: results.length,
-      totalFailed: errors.length
+      totalFailed: errors.length,
+      totalProcessed: documentIds.length
     };
     
   } catch (error) {
     console.error('Erro ao deletar múltiplos documentos:', error);
-    throw new Error(`Falha na remoção múltipla: ${error.message}`);
+    throw new Error(`Falha na deleção múltipla: ${error.message}`);
   }
 };
 
 // =========================================
-// 📋 OPERAÇÕES DE LISTAGEM
+// 📊 OPERAÇÕES DE ESTATÍSTICAS
 // =========================================
 
 /**
- * Listar documentos de um cliente
+ * Obter estatísticas de documentos do cliente
  */
-export const listClientDocuments = async (userId, clientId) => {
+export const getDocumentStats = async (userId, clientId) => {
   try {
-    // Os documentos já estão listados no documento do cliente no Firestore
-    // Esta função é principalmente para verificar se os arquivos ainda existem no Storage
+    if (!userId || !clientId) {
+      throw new Error('userId e clientId são obrigatórios');
+    }
     
-    const documentsPath = `users/${userId}/${STORAGE_PATHS.DOCUMENTS}/${clientId}/`;
-    const documentsRef = ref(storage, documentsPath);
+    const documents = await getClientDocuments(userId, clientId);
     
-    const result = await listAll(documentsRef);
+    // Calcular estatísticas
+    const stats = documents.reduce((acc, doc) => {
+      acc.total++;
+      acc.totalSize += doc.tamanho || 0;
+      
+      // Por categoria
+      acc.byCategory[doc.categoria] = (acc.byCategory[doc.categoria] || 0) + 1;
+      
+      // Por tipo
+      const fileType = doc.tipo?.split('/')[0] || 'unknown';
+      acc.byType[fileType] = (acc.byType[fileType] || 0) + 1;
+      
+      // Por status
+      acc.byStatus[doc.status] = (acc.byStatus[doc.status] || 0) + 1;
+      
+      return acc;
+    }, {
+      total: 0,
+      totalSize: 0,
+      totalSizeFormatted: '',
+      byCategory: {},
+      byType: {},
+      byStatus: {},
+      lastUpload: null
+    });
     
-    const documents = await Promise.all(
-      result.items.map(async (itemRef) => {
-        const url = await getDownloadURL(itemRef);
-        const metadata = await getMetadata(itemRef);
-        
-        return {
-          name: itemRef.name,
-          fullPath: itemRef.fullPath,
-          url,
-          size: metadata.size,
-          contentType: metadata.contentType,
-          timeCreated: metadata.timeCreated,
-          updated: metadata.updated
-        };
-      })
-    );
+    // Formatar tamanho total
+    stats.totalSizeFormatted = formatFileSize(stats.totalSize);
     
-    return documents;
+    // Último upload
+    if (documents.length > 0) {
+      stats.lastUpload = documents[0].uploadedAt; // Já ordenado por data desc
+    }
+    
+    return stats;
     
   } catch (error) {
-    console.error('Erro ao listar documentos:', error);
-    throw new Error(`Falha ao listar documentos: ${error.message}`);
+    console.error('Erro ao calcular estatísticas:', error);
+    throw new Error(`Falha ao calcular estatísticas: ${error.message}`);
   }
 };
 
 // =========================================
-// 🎨 OPERAÇÕES DE PREVIEW
+// 🔄 OPERAÇÕES DE ORGANIZAÇÃO
 // =========================================
 
 /**
- * Gerar preview do documento
+ * Organizar documentos por categoria
  */
-export const generatePreview = async (file) => {
+export const organizeByCategory = (documents) => {
+  return documents.reduce((acc, doc) => {
+    const categoria = doc.categoria || DocumentCategory.OUTROS;
+    if (!acc[categoria]) {
+      acc[categoria] = [];
+    }
+    acc[categoria].push(doc);
+    return acc;
+  }, {});
+};
+
+/**
+ * Atualizar categoria de documento
+ */
+export const updateDocumentCategory = async (userId, documentId, newCategory) => {
   try {
-    if (file.type.startsWith('image/')) {
-      // Para imagens, criar preview local
-      return {
-        type: 'image',
-        url: URL.createObjectURL(file),
-        cleanup: () => URL.revokeObjectURL(url)
-      };
+    if (!userId || !documentId || !newCategory) {
+      throw new Error('Parâmetros obrigatórios');
     }
     
-    if (file.type === 'application/pdf') {
-      // Para PDFs, em produção usaríamos PDF.js ou similar
-      return {
-        type: 'pdf',
-        icon: '📄',
-        pages: 'Desconhecido',
-        preview: null
-      };
+    if (!Object.values(DocumentCategory).includes(newCategory)) {
+      throw new Error('Categoria inválida');
     }
     
-    // Para outros tipos, retornar ícone baseado no tipo
+    const docRef = doc(db, getUserCollection(userId, 'documents'), documentId);
+    await updateDoc(docRef, {
+      categoria: newCategory,
+      updatedAt: serverTimestamp()
+    });
+    
+    return await getDocument(userId, documentId);
+    
+  } catch (error) {
+    console.error('Erro ao atualizar categoria:', error);
+    throw new Error(`Falha ao atualizar categoria: ${error.message}`);
+  }
+};
+
+/**
+ * Mover documento para nova categoria (com reorganização no Storage)
+ */
+export const moveDocumentToCategory = async (userId, documentId, newCategory) => {
+  try {
+    if (!userId || !documentId || !newCategory) {
+      throw new Error('Parâmetros obrigatórios');
+    }
+    
+    // Buscar documento atual
+    const document = await getDocument(userId, documentId);
+    
+    if (!document.storagePath) {
+      // Se não tem storage path, apenas atualizar categoria
+      return await updateDocumentCategory(userId, documentId, newCategory);
+    }
+    
+    // Criar novo path no Storage
+    const pathParts = document.storagePath.split('/');
+    const fileName = pathParts[pathParts.length - 1];
+    const clientId = document.clientId;
+    
+    const newStoragePath = `${getUserStoragePath(userId, 'documents')}/${clientId}/${newCategory}/${fileName}`;
+    
+    // Se o path já é o mesmo, apenas atualizar metadados
+    if (document.storagePath === newStoragePath) {
+      return await updateDocumentCategory(userId, documentId, newCategory);
+    }
+    
+    // Copiar arquivo para novo local
+    const oldRef = ref(storage, document.storagePath);
+    const newRef = ref(storage, newStoragePath);
+    
+    // Por limitações do Firebase, precisamos baixar e fazer re-upload
+    // Em ambiente real, consideraria usar Cloud Functions para isso
+    const url = await getDownloadURL(oldRef);
+    const response = await fetch(url);
+    const blob = await response.blob();
+    
+    // Upload para novo local
+    await uploadBytesResumable(newRef, blob);
+    
+    // Obter nova URL
+    const newUrl = await getDownloadURL(newRef);
+    
+    // Atualizar documento no Firestore
+    const docRef = doc(db, getUserCollection(userId, 'documents'), documentId);
+    await updateDoc(docRef, {
+      categoria: newCategory,
+      storagePath: newStoragePath,
+      url: newUrl,
+      updatedAt: serverTimestamp()
+    });
+    
+    // Deletar arquivo antigo
+    await deleteObject(oldRef);
+    
+    return await getDocument(userId, documentId);
+    
+  } catch (error) {
+    console.error('Erro ao mover documento:', error);
+    throw new Error(`Falha ao mover documento: ${error.message}`);
+  }
+};
+
+// =========================================
+// 🔍 OPERAÇÕES DE PESQUISA
+// =========================================
+
+/**
+ * Pesquisar documentos por nome
+ */
+export const searchDocuments = async (userId, clientId, searchTerm, options = {}) => {
+  try {
+    if (!userId || !searchTerm?.trim()) {
+      return [];
+    }
+    
+    // Buscar todos os documentos do cliente
+    const documents = await getClientDocuments(userId, clientId);
+    
+    const term = searchTerm.toLowerCase().trim();
+    
+    // Filtrar por termo de pesquisa
+    const filtered = documents.filter(doc => {
+      const nameMatch = doc.nome?.toLowerCase().includes(term);
+      const categoryMatch = doc.categoria?.toLowerCase().includes(term);
+      const typeMatch = doc.tipo?.toLowerCase().includes(term);
+      
+      return nameMatch || categoryMatch || typeMatch;
+    });
+    
+    // Aplicar filtros adicionais
+    let result = filtered;
+    
+    if (options.categoria) {
+      result = result.filter(doc => doc.categoria === options.categoria);
+    }
+    
+    if (options.tipo) {
+      result = result.filter(doc => doc.tipo?.includes(options.tipo));
+    }
+    
+    if (options.dateFrom) {
+      result = result.filter(doc => doc.uploadedAt >= options.dateFrom);
+    }
+    
+    if (options.dateTo) {
+      result = result.filter(doc => doc.uploadedAt <= options.dateTo);
+    }
+    
+    // Ordenar por relevância (nome exato primeiro)
+    result.sort((a, b) => {
+      const aNameExact = a.nome?.toLowerCase() === term;
+      const bNameExact = b.nome?.toLowerCase() === term;
+      
+      if (aNameExact && !bNameExact) return -1;
+      if (!aNameExact && bNameExact) return 1;
+      
+      // Por data se relevância igual
+      return b.uploadedAt - a.uploadedAt;
+    });
+    
+    return result;
+    
+  } catch (error) {
+    console.error('Erro na pesquisa de documentos:', error);
+    throw new Error(`Falha na pesquisa: ${error.message}`);
+  }
+};
+
+// =========================================
+// 🔄 OPERAÇÕES DE SINCRONIZAÇÃO
+// =========================================
+
+/**
+ * Sincronizar documentos (verificar integridade)
+ */
+export const syncDocuments = async (userId, clientId) => {
+  try {
+    if (!userId || !clientId) {
+      throw new Error('userId e clientId são obrigatórios');
+    }
+    
+    // Buscar documentos no Firestore
+    const firestoreDocuments = await getClientDocuments(userId, clientId);
+    
+    const syncResults = {
+      total: firestoreDocuments.length,
+      valid: 0,
+      invalid: 0,
+      orphaned: 0,
+      errors: []
+    };
+    
+    // Verificar cada documento
+    for (const doc of firestoreDocuments) {
+      try {
+        if (doc.storagePath) {
+          // Verificar se arquivo existe no Storage
+          const storageRef = ref(storage, doc.storagePath);
+          await getMetadata(storageRef);
+          syncResults.valid++;
+        } else {
+          // Documento sem storage path
+          syncResults.orphaned++;
+          syncResults.errors.push({
+            documentId: doc.id,
+            issue: 'Missing storage path',
+            fileName: doc.nome
+          });
+        }
+      } catch (error) {
+        // Arquivo não existe no Storage
+        syncResults.invalid++;
+        syncResults.errors.push({
+          documentId: doc.id,
+          issue: 'File not found in storage',
+          fileName: doc.nome,
+          error: error.message
+        });
+      }
+    }
+    
+    return syncResults;
+    
+  } catch (error) {
+    console.error('Erro na sincronização:', error);
+    throw new Error(`Falha na sincronização: ${error.message}`);
+  }
+};
+
+/**
+ * Limpar documentos órfãos (metadados sem arquivo)
+ */
+export const cleanOrphanedDocuments = async (userId, clientId) => {
+  try {
+    const syncResults = await syncDocuments(userId, clientId);
+    
+    const orphanedIds = syncResults.errors
+      .filter(error => error.issue === 'File not found in storage')
+      .map(error => error.documentId);
+    
+    if (orphanedIds.length === 0) {
+      return { message: 'Nenhum documento órfão encontrado', cleaned: 0 };
+    }
+    
+    // Deletar apenas os metadados (arquivo já não existe)
+    const deleteResults = [];
+    for (const docId of orphanedIds) {
+      try {
+        const docRef = doc(db, getUserCollection(userId, 'documents'), docId);
+        await deleteDoc(docRef);
+        deleteResults.push(docId);
+      } catch (error) {
+        console.error(`Erro ao deletar documento órfão ${docId}:`, error);
+      }
+    }
+    
     return {
-      type: 'file',
-      icon: getFileIcon(file.type),
-      preview: null
+      message: `${deleteResults.length} documentos órfãos removidos`,
+      cleaned: deleteResults.length,
+      errors: orphanedIds.length - deleteResults.length
     };
     
   } catch (error) {
-    console.error('Erro ao gerar preview:', error);
-    return null;
+    console.error('Erro na limpeza de órfãos:', error);
+    throw new Error(`Falha na limpeza: ${error.message}`);
   }
 };
 
 // =========================================
-// 🔧 FUNÇÕES UTILITÁRIAS
+// 📋 OPERAÇÕES BATCH
 // =========================================
 
 /**
- * Formatar tamanho do arquivo
+ * Operação batch para múltiplas ações
  */
-export const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 Bytes';
-  
-  const k = 1024;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+export const batchDocumentOperations = async (userId, operations) => {
+  try {
+    if (!userId || !operations || operations.length === 0) {
+      throw new Error('Parâmetros inválidos');
+    }
+    
+    const results = [];
+    const errors = [];
+    
+    for (const operation of operations) {
+      try {
+        let result;
+        
+        switch (operation.type) {
+          case 'delete':
+            result = await deleteDocument(userId, operation.documentId);
+            break;
+          case 'updateCategory':
+            result = await updateDocumentCategory(userId, operation.documentId, operation.categoria);
+            break;
+          case 'move':
+            result = await moveDocumentToCategory(userId, operation.documentId, operation.categoria);
+            break;
+          default:
+            throw new Error(`Operação não suportada: ${operation.type}`);
+        }
+        
+        results.push({
+          operation: operation.type,
+          documentId: operation.documentId,
+          success: true,
+          result
+        });
+        
+      } catch (error) {
+        errors.push({
+          operation: operation.type,
+          documentId: operation.documentId,
+          success: false,
+          error: error.message
+        });
+      }
+    }
+    
+    return {
+      results,
+      errors,
+      totalProcessed: operations.length,
+      successCount: results.length,
+      errorCount: errors.length
+    };
+    
+  } catch (error) {
+    console.error('Erro na operação batch:', error);
+    throw new Error(`Falha na operação batch: ${error.message}`);
+  }
 };
 
-/**
- * Obter ícone do tipo de arquivo
- */
-export const getFileIcon = (fileType) => {
-  if (fileType.startsWith('image/')) return '🖼️';
-  if (fileType === 'application/pdf') return '📄';
-  if (fileType.includes('word')) return '📝';
-  if (fileType.includes('excel') || fileType.includes('spreadsheet')) return '📊';
-  if (fileType.includes('zip') || fileType.includes('rar')) return '📦';
-  return '📁';
-};
+// =========================================
+// 🎯 EXPORTS
+// =========================================
 
-/**
- * Obter extensão do arquivo
- */
-export const getFileExtension = (fileName) => {
-  return fileName.split('.').pop()?.toLowerCase() || '';
-};
-
-/**
- * Verificar se arquivo é imagem
- */
-export const isImageFile = (fileType) => {
-  return fileType.startsWith('image/');
-};
-
-/**
- * Verificar se arquivo é PDF
- */
-export const isPdfFile = (fileType) => {
-  return fileType === 'application/pdf';
-};
-
-// Export default com todas as funções
 export default {
-  validateFile,
-  categorizeDocument,
+  // Upload operations
   uploadDocument,
   uploadMultipleDocuments,
+  
+  // List and fetch operations
+  getClientDocuments,
+  getDocument,
   getDownloadUrl,
+  
+  // Delete operations
   deleteDocument,
   deleteMultipleDocuments,
-  listClientDocuments,
-  generatePreview,
-  formatFileSize,
-  getFileIcon,
-  getFileExtension,
+  
+  // Organization operations
+  organizeByCategory,
+  updateDocumentCategory,
+  moveDocumentToCategory,
+  
+  // Search operations
+  searchDocuments,
+  
+  // Stats operations
+  getDocumentStats,
+  
+  // Sync operations
+  syncDocuments,
+  cleanOrphanedDocuments,
+  
+  // Batch operations
+  batchDocumentOperations,
+  
+  // Utility functions
+  validateFile,
   isImageFile,
-  isPdfFile
+  isDocumentFile,
+  getFileIcon,
+  formatFileSize,
+  generateUniqueFileName,
+  
+  // Constants
+  DocumentCategory,
+  DocumentStatus,
+  ALLOWED_FILE_TYPES,
+  MAX_FILE_SIZE,
+  MAX_FILES_PER_UPLOAD
 };
