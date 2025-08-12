@@ -1,5 +1,5 @@
 // =========================================
-// 🎨 COMPONENT - ClientForm COMPLETO
+// 🎨 COMPONENT - ClientForm COMPLETO CORRIGIDO
 // =========================================
 // Formulário multi-step funcional sem re-renders
 
@@ -56,11 +56,7 @@ const ClientForm = ({
     isSubmitting,
     isFirstStep,
     isLastStep,
-    canGoNext,
-    canGoPrev,
-    needsSpouseData,
     progressPercentage,
-    completedSteps,
     updateField,
     nextStep,
     prevStep,
@@ -118,6 +114,10 @@ const ClientForm = ({
 
   const currentStepConfig = steps[currentStep - 1];
 
+  // Computed values para o progress
+  const completedSteps = steps.map((_, index) => index + 1 < currentStep);
+  const isConjugeRequired = ESTADOS_COM_CONJUGE.includes(formData.dadosPessoais?.estadoCivil);
+
   // =========================================
   // 🎨 PROGRESS HEADER
   // =========================================
@@ -130,23 +130,23 @@ const ClientForm = ({
             <h2 className="text-2xl font-bold text-gray-900">
               {mode === 'create' ? 'Novo Cliente' : 'Editar Cliente'}
             </h2>
-            <div className="text-sm text-gray-500">
+            <span className="text-sm text-gray-500">
               Passo {currentStep} de {steps.length}
-            </div>
+            </span>
           </div>
           
-          {/* Progress Steps */}
-          <div className="flex items-center gap-4">
+          {/* Step Navigation */}
+          <div className="flex items-center justify-center gap-2 mb-4">
             {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center gap-4">
+              <div key={step.id} className="flex items-center">
                 <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
                   onClick={() => goToStep(step.id)}
+                  disabled={isAnimating}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                   className={`
-                    relative w-10 h-10 rounded-full flex items-center justify-center
-                    transition-all duration-300 font-medium text-sm
-                    ${currentStep === step.id 
+                    flex items-center justify-center w-10 h-10 rounded-full font-medium text-sm transition-all duration-200
+                    ${currentStep === step.id
                       ? getStepActiveClass(step.color)
                       : completedSteps[index]
                         ? 'bg-green-500 text-white'
@@ -223,7 +223,7 @@ const ClientForm = ({
           required
           icon={User}
           placeholder="Ex: João Silva Santos"
-          value={formData.dadosPessoais.nome}
+          value={formData.dadosPessoais?.nome || ''}
           onChange={(value) => updateField('dadosPessoais.nome', value)}
           error={errors['dadosPessoais.nome']}
           help="Nome completo como aparece no documento de identificação"
@@ -236,7 +236,7 @@ const ClientForm = ({
           required
           icon={Mail}
           placeholder="joao@exemplo.com"
-          value={formData.dadosPessoais.email}
+          value={formData.dadosPessoais?.email || ''}
           onChange={(value) => updateField('dadosPessoais.email', value)}
           error={errors['dadosPessoais.email']}
         />
@@ -248,7 +248,7 @@ const ClientForm = ({
           required
           icon={Phone}
           placeholder="+351 912 345 678"
-          value={formData.dadosPessoais.telefone}
+          value={formData.dadosPessoais?.telefone || ''}
           onChange={(value) => updateField('dadosPessoais.telefone', value)}
           error={errors['dadosPessoais.telefone']}
           help="Formato: +351 XXX XXX XXX"
@@ -259,7 +259,7 @@ const ClientForm = ({
           name="dadosPessoais.dataNascimento"
           type="date"
           icon={Calendar}
-          value={formData.dadosPessoais.dataNascimento}
+          value={formData.dadosPessoais?.dataNascimento || ''}
           onChange={(value) => updateField('dadosPessoais.dataNascimento', value)}
           error={errors['dadosPessoais.dataNascimento']}
         />
@@ -269,19 +269,25 @@ const ClientForm = ({
           name="dadosPessoais.nif"
           icon={FileText}
           placeholder="123 456 789"
-          value={formData.dadosPessoais.nif}
+          value={formData.dadosPessoais?.nif || ''}
           onChange={(value) => updateField('dadosPessoais.nif', value)}
           error={errors['dadosPessoais.nif']}
           help="Número de Identificação Fiscal"
         />
         
         <FormField
-          label="Nacionalidade"
-          name="dadosPessoais.nacionalidade"
-          value={formData.dadosPessoais.nacionalidade}
-          onChange={(value) => updateField('dadosPessoais.nacionalidade', value)}
-          error={errors['dadosPessoais.nacionalidade']}
-          placeholder="Portuguesa"
+          label="Estado Civil"
+          name="dadosPessoais.estadoCivil"
+          type="select"
+          required
+          icon={Heart}
+          value={formData.dadosPessoais?.estadoCivil || EstadoCivil.SOLTEIRO}
+          onChange={(value) => updateField('dadosPessoais.estadoCivil', value)}
+          error={errors['dadosPessoais.estadoCivil']}
+          options={Object.entries(EstadoCivilLabels).map(([key, label]) => ({
+            value: key,
+            label
+          }))}
         />
       </div>
       
@@ -289,16 +295,15 @@ const ClientForm = ({
         label="Morada Completa"
         name="dadosPessoais.morada"
         icon={MapPin}
-        placeholder="Rua das Flores, 123, 4º Esq, 1000-100 Lisboa"
-        value={formData.dadosPessoais.morada}
+        placeholder="Rua, número, código postal, cidade"
+        value={formData.dadosPessoais?.morada || ''}
         onChange={(value) => updateField('dadosPessoais.morada', value)}
         error={errors['dadosPessoais.morada']}
-        help="Morada completa com código postal"
       />
     </motion.div>
   );
 
-  const Step2FamilyData = () => (
+  const Step2FamilyInfo = () => (
     <motion.div
       key="step2"
       initial={{ opacity: 0, x: 50 }}
@@ -306,42 +311,24 @@ const ClientForm = ({
       exit={{ opacity: 0, x: -50 }}
       className="space-y-6"
     >
-      <FormField
-        label="Estado Civil"
-        name="dadosPessoais.estadoCivil"
-        type="select"
-        icon={Heart}
-        value={formData.dadosPessoais.estadoCivil}
-        onChange={(value) => updateField('dadosPessoais.estadoCivil', value)}
-        error={errors['dadosPessoais.estadoCivil']}
-        options={Object.entries(EstadoCivilLabels).map(([key, label]) => ({
-          value: key,
-          label
-        }))}
-        placeholder="Selecione o estado civil"
-      />
-      
-      <AnimatePresence>
-        {needsSpouseData && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-6 p-6 bg-pink-50 rounded-2xl border border-pink-200"
-          >
-            <div className="flex items-center gap-2 text-pink-700">
-              <Users className="w-5 h-5" />
-              <h4 className="font-medium">Dados do Cônjuge</h4>
+      {isConjugeRequired ? (
+        <>
+          <div className="bg-pink-50 border border-pink-200 rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <Heart className="w-6 h-6 text-pink-600" />
+              <h3 className="text-lg font-semibold text-pink-900">
+                Informações do Cônjuge
+              </h3>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <FormField
                 label="Nome do Cônjuge"
                 name="conjuge.nome"
-                required={needsSpouseData}
+                required
                 icon={User}
-                placeholder="Maria Silva Santos"
-                value={formData.conjuge.nome}
+                placeholder="Nome completo do cônjuge"
+                value={formData.conjuge?.nome || ''}
                 onChange={(value) => updateField('conjuge.nome', value)}
                 error={errors['conjuge.nome']}
               />
@@ -351,31 +338,51 @@ const ClientForm = ({
                 name="conjuge.email"
                 type="email"
                 icon={Mail}
-                placeholder="maria@exemplo.com"
-                value={formData.conjuge.email}
+                placeholder="email@exemplo.com"
+                value={formData.conjuge?.email || ''}
                 onChange={(value) => updateField('conjuge.email', value)}
                 error={errors['conjuge.email']}
               />
+              
+              <FormField
+                label="NIF do Cônjuge"
+                name="conjuge.nif"
+                icon={FileText}
+                placeholder="123 456 789"
+                value={formData.conjuge?.nif || ''}
+                onChange={(value) => updateField('conjuge.nif', value)}
+                error={errors['conjuge.nif']}
+              />
             </div>
-            
-            <FormField
-              label="Regime de Bens"
-              name="comunhaoBens"
-              type="select"
-              required={needsSpouseData}
-              icon={Heart}
-              value={formData.comunhaoBens}
-              onChange={(value) => updateField('comunhaoBens', value)}
-              error={errors['comunhaoBens']}
-              options={Object.entries(ComunhaoBensLabels).map(([key, label]) => ({
-                value: key,
-                label
-              }))}
-              placeholder="Selecione o regime de bens"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          </div>
+          
+          <FormField
+            label="Regime de Bens"
+            name="comunhaoBens"
+            type="select"
+            required
+            icon={Heart}
+            value={formData.comunhaoBens || ''}
+            onChange={(value) => updateField('comunhaoBens', value)}
+            error={errors['comunhaoBens']}
+            options={Object.entries(ComunhaoBensLabels).map(([key, label]) => ({
+              value: key,
+              label
+            }))}
+            placeholder="Selecione o regime de bens"
+          />
+        </>
+      ) : (
+        <div className="text-center py-12">
+          <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-gray-900 mb-2">
+            Estado Civil: {EstadoCivilLabels[formData.dadosPessoais?.estadoCivil]}
+          </h3>
+          <p className="text-gray-600">
+            Não são necessárias informações de cônjuge para este estado civil.
+          </p>
+        </div>
+      )}
     </motion.div>
   );
 
@@ -387,24 +394,33 @@ const ClientForm = ({
       exit={{ opacity: 0, x: -50 }}
       className="space-y-6"
     >
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
-        <div className="flex items-center gap-2 text-green-700 mb-4">
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+        <div className="flex items-center gap-2 text-green-800">
           <Info className="w-5 h-5" />
-          <span className="font-medium">Informação Opcional</span>
+          <span className="text-sm">
+            Estes dados são opcionais e servem para facilitar transações futuras.
+          </span>
         </div>
-        <p className="text-green-600 text-sm">
-          Os dados bancários são opcionais mas ajudam a agilizar processos futuros.
-          Todas as informações são armazenadas de forma segura.
-        </p>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <FormField
-          label="Banco"
+          label="IBAN"
+          name="dadosBancarios.iban"
+          icon={CreditCard}
+          placeholder="PT50 0000 0000 0000 0000 000"
+          value={formData.dadosBancarios?.iban || ''}
+          onChange={(value) => updateField('dadosBancarios.iban', value)}
+          error={errors['dadosBancarios.iban']}
+          help="Número IBAN da conta bancária"
+        />
+        
+        <FormField
+          label="Nome do Banco"
           name="dadosBancarios.banco"
           icon={CreditCard}
-          placeholder="Ex: Millennium BCP"
-          value={formData.dadosBancarios.banco}
+          placeholder="Ex: Banco Santander"
+          value={formData.dadosBancarios?.banco || ''}
           onChange={(value) => updateField('dadosBancarios.banco', value)}
           error={errors['dadosBancarios.banco']}
         />
@@ -414,22 +430,11 @@ const ClientForm = ({
           name="dadosBancarios.titular"
           icon={User}
           placeholder="Nome do titular"
-          value={formData.dadosBancarios.titular}
+          value={formData.dadosBancarios?.titular || ''}
           onChange={(value) => updateField('dadosBancarios.titular', value)}
           error={errors['dadosBancarios.titular']}
         />
       </div>
-      
-      <FormField
-        label="IBAN"
-        name="dadosBancarios.iban"
-        icon={CreditCard}
-        placeholder="PT50 0000 0000 0000 0000 0000 0"
-        value={formData.dadosBancarios.iban}
-        onChange={(value) => updateField('dadosBancarios.iban', value)}
-        error={errors['dadosBancarios.iban']}
-        help="Formato: PT50 seguido de 19 dígitos"
-      />
     </motion.div>
   );
 
@@ -441,10 +446,12 @@ const ClientForm = ({
       exit={{ opacity: 0, x: -50 }}
       className="space-y-6"
     >
-      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6">
-        <h4 className="font-medium text-purple-900 mb-4">Preferências de Comunicação</h4>
-        <p className="text-purple-700 text-sm mb-4">
-          Configure como e quando prefere ser contactado pelo nosso sistema.
+      <div className="bg-purple-50 border border-purple-200 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-purple-900 mb-2">
+          Preferências de Comunicação
+        </h3>
+        <p className="text-purple-700 text-sm mb-6">
+          Configure como e quando deseja ser contactado.
         </p>
         
         <div className="space-y-4">
@@ -460,7 +467,7 @@ const ClientForm = ({
               <input
                 type="checkbox"
                 name={`comunicacoes.${pref.key}`}
-                checked={formData.comunicacoes[pref.key] || false}
+                checked={formData.comunicacoes?.[pref.key] || false}
                 onChange={(e) => updateField(`comunicacoes.${pref.key}`, e.target.checked)}
                 className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
               />
@@ -519,8 +526,7 @@ const ClientForm = ({
                   }}
                   className="sr-only"
                 />
-                <div className={`w-3 h-3 rounded-full ${isSelected ? 'bg-current' : 'bg-gray-300'}`} />
-                <span className="font-medium">{label}</span>
+                <span className="text-sm font-medium">{label}</span>
               </motion.label>
             );
           })}
@@ -531,10 +537,10 @@ const ClientForm = ({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="text-xs text-red-600 flex items-center gap-1"
-            role="alert"
           >
             <AlertCircle className="w-3 h-3" />
-            {Array.isArray(errors.roles) ? errors.roles.join(', ') : errors.roles}
+            {Array.isArray(errors.roles) ? 
+              errors.roles.join(', ') : errors.roles}
           </motion.p>
         )}
       </div>
@@ -544,7 +550,7 @@ const ClientForm = ({
         name="origem"
         type="select"
         icon={Target}
-        value={formData.origem}
+        value={formData.origem || ''}
         onChange={(value) => updateField('origem', value)}
         error={errors['origem']}
         options={Object.entries(ClientSourceLabels).map(([key, label]) => ({
@@ -560,7 +566,7 @@ const ClientForm = ({
         type="textarea"
         icon={FileText}
         placeholder="Adicione notas ou observações sobre este cliente..."
-        value={formData.notas}
+        value={formData.notas || ''}
         onChange={(value) => updateField('notas', value)}
         error={errors['notas']}
       />
@@ -660,7 +666,7 @@ const ClientForm = ({
           <div className="p-8">
             <AnimatePresence mode="wait">
               {currentStep === 1 && <Step1PersonalData />}
-              {currentStep === 2 && <Step2FamilyData />}
+              {currentStep === 2 && <Step2FamilyInfo />}
               {currentStep === 3 && <Step3BankingData />}
               {currentStep === 4 && <Step4Communications />}
               {currentStep === 5 && <Step5Finalization />}
@@ -670,81 +676,78 @@ const ClientForm = ({
           {/* Navigation Footer */}
           <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                {!isFirstStep && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={prevStep}
-                    disabled={isAnimating}
-                    className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                    <span>Anterior</span>
-                  </motion.button>
-                )}
-                
-                {isDirty && mode === 'edit' && (
-                  <div className="flex items-center gap-2 text-blue-600 text-sm">
-                    <Save className="w-4 h-4" />
-                    <span>Auto-salvamento ativo</span>
-                  </div>
-                )}
-              </div>
+              <motion.button
+                onClick={prevStep}
+                disabled={isFirstStep || isAnimating}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`
+                  flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all
+                  ${isFirstStep 
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed' 
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-300'
+                  }
+                `}
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Anterior
+              </motion.button>
               
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 {onCancel && (
                   <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
                     onClick={onCancel}
-                    className="px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-6 py-3 rounded-xl font-medium text-gray-700 hover:bg-gray-100 transition-all"
                   >
                     Cancelar
                   </motion.button>
                 )}
                 
-                {!isLastStep ? (
+                {isLastStep ? (
                   <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleNext}
-                    disabled={!canGoNext || isAnimating}
-                    className={`
-                      flex items-center gap-2 px-8 py-3 rounded-xl font-medium transition-all
-                      ${getButtonClass(currentStepConfig.color, !canGoNext || isAnimating)}
-                    `}
-                  >
-                    <span>Continuar</span>
-                    <ChevronRight className="w-5 h-5" />
-                  </motion.button>
-                ) : (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
                     onClick={handleSubmit}
-                    disabled={isSubmitting || !canGoNext}
+                    disabled={isSubmitting || isAnimating}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className={`
                       flex items-center gap-2 px-8 py-3 rounded-xl font-medium transition-all
-                      ${isSubmitting || !canGoNext
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-green-600 text-white hover:bg-green-700'
-                      }
+                      ${getButtonClass(currentStepConfig.color, isSubmitting || isAnimating)}
                     `}
                   >
                     {isSubmitting ? (
                       <>
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
-                        />
-                        <span>Salvando...</span>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Guardando...
                       </>
                     ) : (
                       <>
-                        <Send className="w-5 h-5" />
-                        <span>{mode === 'create' ? 'Criar Cliente' : 'Salvar Alterações'}</span>
+                        <Save className="w-4 h-4" />
+                        {mode === 'create' ? 'Criar Cliente' : 'Guardar Alterações'}
+                      </>
+                    )}
+                  </motion.button>
+                ) : (
+                  <motion.button
+                    onClick={handleNext}
+                    disabled={isAnimating}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`
+                      flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all
+                      ${getButtonClass(currentStepConfig.color, isAnimating)}
+                    `}
+                  >
+                    {isAnimating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        Validando...
+                      </>
+                    ) : (
+                      <>
+                        Próximo
+                        <ChevronRight className="w-4 h-4" />
                       </>
                     )}
                   </motion.button>
