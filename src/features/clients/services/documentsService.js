@@ -193,6 +193,51 @@ const documentsService = {
     }
     
     return null;
+  },
+
+  /**
+   * Formatar tamanho do arquivo
+   */
+  formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  },
+
+  /**
+   * Obter ícone do tipo de arquivo
+   */
+  getFileIcon(fileType) {
+    if (fileType.startsWith('image/')) return '🖼️';
+    if (fileType === 'application/pdf') return '📄';
+    if (fileType.includes('word')) return '📝';
+    if (fileType.includes('excel') || fileType.includes('spreadsheet')) return '📊';
+    return '📁';
+  },
+
+  /**
+   * Listar documentos do cliente (mock)
+   */
+  async listClientDocuments(userId, clientId) {
+    await delay(300);
+    
+    // Retornar documentos simulados
+    return [
+      {
+        id: '1',
+        nome: 'cartao_cidadao.pdf',
+        categoria: 'cartao_cidadao',
+        tipo: 'application/pdf',
+        tamanho: 245760,
+        url: `/docs/${clientId}/cartao_cidadao.pdf`,
+        uploadedAt: '2024-08-10T10:00:00Z',
+        uploadedBy: userId
+      }
+    ];
   }
 };
 
