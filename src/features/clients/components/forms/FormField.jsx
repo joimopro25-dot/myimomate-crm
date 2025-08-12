@@ -2,7 +2,6 @@
 // 🎨 COMPONENT - FormField ESTÁVEL
 // =========================================
 // Componente separado para evitar re-renders
-// CORREÇÃO: IDs únicos e acessibilidade
 
 import React, { memo, useId } from 'react';
 import { motion } from 'framer-motion';
@@ -10,7 +9,6 @@ import { AlertCircle, Info } from 'lucide-react';
 
 /**
  * FormField - Componente estável e acessível
- * CORREÇÃO: Sem re-renders + IDs únicos
  */
 const FormField = memo(({ 
   label, 
@@ -26,7 +24,6 @@ const FormField = memo(({
   error = null,
   className = ''
 }) => {
-  // 🔧 CORREÇÃO: ID único para acessibilidade
   const fieldId = useId();
   const helpId = useId();
   const errorId = useId();
