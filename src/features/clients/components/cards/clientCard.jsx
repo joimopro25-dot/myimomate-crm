@@ -1,543 +1,659 @@
 // =========================================
-// 🎨 COMPONENT - ClientCard INTELIGENTE
+// 🎨 COMPONENT - ClientCard COMPLETO
 // =========================================
-// Card transformador que torna cada cliente vivo e cativante
-// Design que motiva consultores a interagir
+// Card inteligente para exibição de clientes
+// Interface cativante com insights em tempo real
 
 import React, { useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   User, 
   Mail, 
   Phone, 
   MapPin, 
   Calendar,
-  TrendingUp,
   Heart,
+  Briefcase,
+  Euro,
+  FileText,
   Star,
   Eye,
   Edit3,
+  MoreHorizontal,
   MessageCircle,
   Gift,
-  Zap,
+  AlertCircle,
   Target,
+  TrendingUp,
   Clock,
-  Euro,
-  Home,
-  Briefcase,
+  CheckCircle,
   Users,
-  FileText,
-  ChevronRight,
-  Sparkles
+  Home
 } from 'lucide-react';
-import { ClientRoleLabels, ClientRoleColors, EstadoCivilLabels } from '../../types/enums';
-import { formatPhone, calculateAge } from '@/shared/utils/formatters';
+
+// Utils e enums
+import {
+  calculateEngagementScore,
+  getEngagementColor,
+  getEngagementLabel,
+  formatCurrency,
+  getTotalDealsValue,
+  getNextRecommendedAction,
+  isBirthdayToday,
+  isBirthdayThisMonth,
+  hasUrgentActions,
+  getNameInitials,
+  formatPhone,
+  formatRelativeDate,
+  getLastContactDate,
+  getRoleColor
+} from '../../utils/clientUtils';
+
+import { ClientRoleLabels } from '../../types/enums';
 
 /**
- * ClientCard - O card mais inteligente e cativante do mercado
- * Torna cada cliente numa experiência visual envolvente
+ * ClientCard - Card revolucionário para clientes
+ * Interface inteligente que transforma dados em insights
  */
 const ClientCard = ({ 
-  client, 
-  onView, 
-  onEdit, 
-  onContact,
+  client,
   variant = 'default', // 'default' | 'compact' | 'detailed'
+  onView,
+  onEdit,
+  onContact,
+  onCall,
+  onEmail,
+  onClick,
+  className = '',
   showActions = true,
-  showStats = true,
-  interactive = true,
-  className = ''
+  showMetrics = true,
+  ...props
 }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const [showQuickActions, setShowQuickActions] = useState(false);
 
   // =========================================
-  // 📊 DADOS INTELIGENTES
+  // 🎣 STATE & REFS
+  // =========================================
+
+  const [isHovered, setIsHovered] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
+
+  // =========================================
+  // 🧠 DADOS INTELIGENTES
   // =========================================
 
   const intelligentData = useMemo(() => {
-    const now = new Date();
-    const createdDate = new Date(client.createdAt);
-    const idade = client.dadosPessoais?.dataNascimento 
-      ? calculateAge(client.dadosPessoais.dataNascimento) 
-      : null;
+    if (!client) return {};
 
-    // Calcular "tempo como cliente"
-    const daysSinceCreated = Math.floor((now - createdDate) / (1000 * 60 * 60 * 24));
-    
-    // Status de aniversário
-    const birthday = client.dadosPessoais?.dataNascimento ? new Date(client.dadosPessoais.dataNascimento) : null;
-    const isBirthdayThisMonth = birthday && birthday.getMonth() === now.getMonth();
-    const isBirthdayToday = birthday && 
-      birthday.getMonth() === now.getMonth() && 
-      birthday.getDate() === now.getDate();
-
-    // Urgência baseada em deals
-    const activeDeals = client.deals?.filter(deal => 
-      !['concluido', 'cancelado'].includes(deal.status)
-    ) || [];
-    
-    const urgentDeals = activeDeals.filter(deal => 
-      ['proposta_enviada', 'cpcv_assinado', 'escritura_agendada'].includes(deal.status)
-    );
-
-    // Score de engagement
     const engagementScore = calculateEngagementScore(client);
+    const totalValue = getTotalDealsValue(client);
+    const lastContact = getLastContactDate(client);
+    const nextAction = getNextRecommendedAction(client);
     
-    // Valor total de negócios
-    const totalValue = client.deals?.reduce((sum, deal) => sum + (deal.valor || 0), 0) || 0;
-
     return {
-      idade,
-      daysSinceCreated,
-      isBirthdayThisMonth,
-      isBirthdayToday,
-      activeDeals: activeDeals.length,
-      urgentDeals: urgentDeals.length,
       engagementScore,
+      engagementColor: getEngagementColor(engagementScore),
+      engagementLabel: getEngagementLabel(engagementScore),
       totalValue,
-      lastContact: getLastContactDate(client),
-      nextAction: getNextSuggestedAction(client)
+      formattedValue: formatCurrency(totalValue),
+      lastContact,
+      lastContactFormatted: formatRelativeDate(lastContact),
+      nextAction,
+      isBirthday: isBirthdayToday(client),
+      isBirthdayMonth: isBirthdayThisMonth(client),
+      hasUrgent: hasUrgentActions(client),
+      initials: getNameInitials(client?.dadosPessoais?.nome),
+      activeDeals: client?.deals?.filter(deal => 
+        ['ativo', 'proposta_enviada', 'negociacao'].includes(deal.status)
+      )?.length || 0,
+      completedDeals: client?.deals?.filter(deal => 
+        deal.status === 'concluido'
+      )?.length || 0
     };
   }, [client]);
 
   // =========================================
-  // 🎨 VISUAL DYNAMICS
+  // 🎯 EVENT HANDLERS
   // =========================================
 
-  const cardVariants = {
-    default: {
-      scale: 1,
-      y: 0,
-      boxShadow: "0 4px 12px rgba(0,0,0,0.1)"
-    },
-    hovered: {
-      scale: 1.02,
-      y: -4,
-      boxShadow: "0 12px 32px rgba(0,0,0,0.15)"
+  const handleClick = () => {
+    if (onClick) onClick(client);
+    else if (onView) onView(client);
+  };
+
+  const handleActionClick = (action, event) => {
+    event?.stopPropagation();
+    
+    switch (action) {
+      case 'view':
+        onView?.(client);
+        break;
+      case 'edit':
+        onEdit?.(client);
+        break;
+      case 'contact':
+        onContact?.(client);
+        break;
+      case 'call':
+        onCall?.(client);
+        break;
+      case 'email':
+        onEmail?.(client);
+        break;
     }
   };
 
-  const roleColors = client.roles?.map(role => ClientRoleColors[role]) || [];
-  const primaryRole = client.roles?.[0];
-  const primaryRoleColor = ClientRoleColors[primaryRole] || 'bg-gray-100 text-gray-800';
-
-  // Score visual
-  const getScoreColor = (score) => {
-    if (score >= 80) return 'text-emerald-500';
-    if (score >= 60) return 'text-blue-500';
-    if (score >= 40) return 'text-yellow-500';
-    return 'text-red-500';
-  };
-
-  const getScoreBg = (score) => {
-    if (score >= 80) return 'bg-emerald-500';
-    if (score >= 60) return 'bg-blue-500';
-    if (score >= 40) return 'bg-yellow-500';
-    return 'bg-red-500';
-  };
-
   // =========================================
-  // 🎯 COMPONENTES INTERNOS
+  // 🎨 RENDER VARIANTS
   // =========================================
 
-  const QuickStats = () => (
-    <div className="grid grid-cols-3 gap-2 mt-3">
-      <div className="text-center p-2 bg-gray-50 rounded-lg">
-        <div className="text-lg font-bold text-gray-900">{intelligentData.activeDeals}</div>
-        <div className="text-xs text-gray-500">Deals Ativos</div>
-      </div>
-      <div className="text-center p-2 bg-gray-50 rounded-lg">
-        <div className="text-lg font-bold text-emerald-600">
-          {intelligentData.totalValue > 0 ? `€${(intelligentData.totalValue / 1000).toFixed(0)}k` : '€0'}
-        </div>
-        <div className="text-xs text-gray-500">Valor Total</div>
-      </div>
-      <div className="text-center p-2 bg-gray-50 rounded-lg">
-        <div className={`text-lg font-bold ${getScoreColor(intelligentData.engagementScore)}`}>
-          {intelligentData.engagementScore}%
-        </div>
-        <div className="text-xs text-gray-500">Engagement</div>
-      </div>
-    </div>
-  );
-
-  const UrgencyIndicators = () => (
-    <div className="flex gap-2 mt-2">
-      {intelligentData.isBirthdayToday && (
-        <motion.div
-          animate={{ scale: [1, 1.1, 1] }}
-          transition={{ repeat: Infinity, duration: 2 }}
-          className="flex items-center gap-1 px-2 py-1 bg-pink-100 text-pink-700 rounded-full text-xs font-medium"
-        >
-          <Gift className="w-3 h-3" />
-          Aniversário Hoje!
-        </motion.div>
-      )}
-      
-      {intelligentData.isBirthdayThisMonth && !intelligentData.isBirthdayToday && (
-        <div className="flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-          <Calendar className="w-3 h-3" />
-          Aniversário Este Mês
-        </div>
-      )}
-      
-      {intelligentData.urgentDeals > 0 && (
-        <motion.div
-          animate={{ opacity: [1, 0.7, 1] }}
-          transition={{ repeat: Infinity, duration: 1.5 }}
-          className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium"
-        >
-          <Zap className="w-3 h-3" />
-          {intelligentData.urgentDeals} Urgente{intelligentData.urgentDeals > 1 ? 's' : ''}
-        </motion.div>
-      )}
-      
-      {intelligentData.daysSinceCreated <= 7 && (
-        <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-          <Sparkles className="w-3 h-3" />
-          Novo Cliente
-        </div>
-      )}
-    </div>
-  );
-
-  const NextAction = () => {
-    if (!intelligentData.nextAction) return null;
-    
+  if (variant === 'compact') {
     return (
-      <div className="mt-3 p-2 bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="flex items-center gap-2">
-          <Target className="w-4 h-4 text-blue-600" />
-          <span className="text-sm font-medium text-blue-900">Próxima Ação:</span>
-        </div>
-        <p className="text-sm text-blue-700 mt-1">{intelligentData.nextAction}</p>
-      </div>
+      <CompactCard 
+        client={client}
+        intelligentData={intelligentData}
+        onActionClick={handleActionClick}
+        onClick={handleClick}
+        className={className}
+        {...props}
+      />
     );
-  };
+  }
 
-  const QuickActions = () => (
-    <AnimatePresence>
-      {showQuickActions && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 10 }}
-          className="absolute top-4 right-4 flex gap-2"
-        >
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onContact?.(client)}
-            className="p-2 bg-green-500 text-white rounded-full shadow-lg hover:bg-green-600 transition-colors"
-            title="Contactar"
-          >
-            <MessageCircle className="w-4 h-4" />
-          </motion.button>
-          
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onEdit?.(client)}
-            className="p-2 bg-blue-500 text-white rounded-full shadow-lg hover:bg-blue-600 transition-colors"
-            title="Editar"
-          >
-            <Edit3 className="w-4 h-4" />
-          </motion.button>
-          
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onView?.(client)}
-            className="p-2 bg-purple-500 text-white rounded-full shadow-lg hover:bg-purple-600 transition-colors"
-            title="Ver Detalhes"
-          >
-            <Eye className="w-4 h-4" />
-          </motion.button>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
+  if (variant === 'detailed') {
+    return (
+      <DetailedCard 
+        client={client}
+        intelligentData={intelligentData}
+        onActionClick={handleActionClick}
+        onClick={handleClick}
+        showActions={showActions}
+        showMetrics={showMetrics}
+        className={className}
+        {...props}
+      />
+    );
+  }
 
   // =========================================
-  // 🎨 RENDER PRINCIPAL
+  // 🎨 DEFAULT CARD
   // =========================================
 
   return (
     <motion.div
-      variants={cardVariants}
-      initial="default"
-      animate={isHovered ? "hovered" : "default"}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      onMouseEnter={() => {
-        setIsHovered(true);
-        setShowQuickActions(true);
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      whileHover={{ 
+        scale: 1.02,
+        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
       }}
-      onMouseLeave={() => {
-        setIsHovered(false);
-        setShowQuickActions(false);
-      }}
+      onClick={handleClick}
+      onHoverStart={() => setIsHovered(true)}
+      onHoverEnd={() => setIsHovered(false)}
       className={`
-        relative bg-white rounded-2xl border border-gray-200 overflow-hidden
-        cursor-pointer group transition-all duration-200
-        ${interactive ? 'hover:border-blue-300' : ''}
+        relative bg-white rounded-2xl border border-gray-200 p-6
+        cursor-pointer transition-all duration-200 overflow-hidden
+        hover:border-blue-300 group
         ${className}
       `}
-      onClick={() => interactive && onView?.(client)}
+      {...props}
     >
-      {/* Background Pattern */}
-      <div className="absolute top-0 right-0 w-32 h-32 opacity-5">
-        <svg viewBox="0 0 100 100" className="w-full h-full">
-          <circle cx="50" cy="50" r="20" fill="currentColor" />
-          <circle cx="80" cy="20" r="15" fill="currentColor" />
-          <circle cx="20" cy="80" r="10" fill="currentColor" />
-        </svg>
+      {/* Badges superiores */}
+      <div className="absolute top-4 right-4 flex gap-2">
+        {intelligentData.isBirthday && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center"
+          >
+            🎂
+          </motion.div>
+        )}
+        
+        {intelligentData.hasUrgent && (
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center"
+          >
+            <AlertCircle className="w-4 h-4 text-red-600" />
+          </motion.div>
+        )}
       </div>
 
-      {/* Header com Engagement Score */}
-      <div className="relative p-6 pb-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            {/* Avatar Inteligente */}
-            <div className="relative">
-              <div className={`
-                w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg
-                ${getScoreBg(intelligentData.engagementScore)}
-              `}>
-                {client.avatar ? (
-                  <img 
-                    src={client.avatar} 
-                    alt={client.dadosPessoais?.nome}
-                    className="w-full h-full rounded-xl object-cover"
-                  />
-                ) : (
-                  client.dadosPessoais?.nome?.charAt(0)?.toUpperCase() || 'C'
-                )}
-              </div>
-              
-              {/* Score Ring */}
-              <div className="absolute -top-1 -right-1">
-                <div className="relative w-6 h-6">
-                  <svg className="w-6 h-6 transform -rotate-90" viewBox="0 0 24 24">
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      fill="transparent"
-                      className="text-gray-200"
-                    />
-                    <circle
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      fill="transparent"
-                      strokeDasharray={`${intelligentData.engagementScore * 0.628} 62.8`}
-                      className={getScoreColor(intelligentData.engagementScore)}
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className={`text-xs font-bold ${getScoreColor(intelligentData.engagementScore)}`}>
-                      {intelligentData.engagementScore}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex-1">
-              <h3 className="font-semibold text-gray-900 text-lg leading-tight">
-                {client.dadosPessoais?.nome || 'Nome não informado'}
-              </h3>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`
-                  px-2 py-1 rounded-full text-xs font-medium
-                  ${primaryRoleColor}
-                `}>
-                  {ClientRoleLabels[primaryRole] || 'Cliente'}
-                </span>
-                {client.roles?.length > 1 && (
-                  <span className="text-xs text-gray-500">
-                    +{client.roles.length - 1} role{client.roles.length > 2 ? 's' : ''}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Status Ativo */}
-          <div className="flex items-center gap-2">
-            <div className={`
-              w-3 h-3 rounded-full
-              ${client.ativo !== false ? 'bg-green-400' : 'bg-gray-400'}
-            `} />
-            {intelligentData.engagementScore >= 80 && (
-              <Star className="w-4 h-4 text-yellow-500 fill-current" />
+      {/* Header com avatar e info básica */}
+      <div className="flex items-start gap-4 mb-4">
+        {/* Avatar */}
+        <div className="relative">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
+            {client?.avatar ? (
+              <img 
+                src={client.avatar} 
+                alt={client?.dadosPessoais?.nome}
+                className="w-full h-full rounded-2xl object-cover"
+              />
+            ) : (
+              intelligentData.initials
             )}
           </div>
+          
+          {/* Status indicator */}
+          <div className={`
+            absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white
+            ${client?.ativo !== false ? 'bg-green-400' : 'bg-gray-400'}
+          `} />
         </div>
-      </div>
 
-      {/* Informações de Contacto */}
-      <div className="px-6 space-y-2">
-        {client.dadosPessoais?.email && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Mail className="w-4 h-4" />
-            <span className="truncate">{client.dadosPessoais.email}</span>
-          </div>
-        )}
-        
-        {client.dadosPessoais?.telefone && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Phone className="w-4 h-4" />
-            <span>{formatPhone(client.dadosPessoais.telefone)}</span>
-          </div>
-        )}
-        
-        {client.dadosPessoais?.morada && (
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <MapPin className="w-4 h-4" />
-            <span className="truncate">{client.dadosPessoais.morada}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Indicadores de Urgência */}
-      <div className="px-6">
-        <UrgencyIndicators />
-      </div>
-
-      {/* Stats Rápidas */}
-      {showStats && (
-        <div className="px-6">
-          <QuickStats />
-        </div>
-      )}
-
-      {/* Próxima Ação Sugerida */}
-      <div className="px-6">
-        <NextAction />
-      </div>
-
-      {/* Footer com Tempo */}
-      <div className="px-6 py-4 bg-gray-50 mt-4">
-        <div className="flex items-center justify-between text-sm text-gray-500">
-          <div className="flex items-center gap-1">
-            <Clock className="w-4 h-4" />
-            <span>
-              {intelligentData.daysSinceCreated === 0 
-                ? 'Hoje' 
-                : `${intelligentData.daysSinceCreated} dia${intelligentData.daysSinceCreated > 1 ? 's' : ''}`
-              }
-            </span>
+        {/* Info básica */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-bold text-gray-900 text-lg truncate">
+            {client?.dadosPessoais?.nome || 'Nome não definido'}
+          </h3>
+          
+          <div className="flex items-center gap-2 mt-1">
+            {client?.dadosPessoais?.email && (
+              <div className="flex items-center gap-1 text-sm text-gray-500">
+                <Mail className="w-3 h-3" />
+                <span className="truncate">{client.dadosPessoais.email}</span>
+              </div>
+            )}
           </div>
           
-          {interactive && (
-            <div className="flex items-center gap-1 text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-              <span>Ver mais</span>
-              <ChevronRight className="w-4 h-4" />
+          {client?.dadosPessoais?.telefone && (
+            <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
+              <Phone className="w-3 h-3" />
+              <span>{formatPhone(client.dadosPessoais.telefone)}</span>
             </div>
           )}
         </div>
       </div>
 
-      {/* Quick Actions Overlay */}
-      {interactive && showActions && <QuickActions />}
+      {/* Roles */}
+      {client?.roles?.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          {client.roles.slice(0, 3).map((role, index) => (
+            <span
+              key={index}
+              className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleColor(role)}`}
+            >
+              {ClientRoleLabels[role] || role}
+            </span>
+          ))}
+          {client.roles.length > 3 && (
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+              +{client.roles.length - 3}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Métricas */}
+      {showMetrics && (
+        <div className="grid grid-cols-3 gap-4 mb-4 py-3 border-t border-gray-100">
+          {/* Engagement Score */}
+          <div className="text-center">
+            <div className={`
+              inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold
+              ${intelligentData.engagementColor}
+            `}>
+              {intelligentData.engagementScore}
+            </div>
+            <p className="text-xs text-gray-500 mt-1">Engagement</p>
+          </div>
+
+          {/* Deals Value */}
+          <div className="text-center">
+            <div className="text-sm font-bold text-gray-900">
+              {intelligentData.formattedValue}
+            </div>
+            <p className="text-xs text-gray-500">Valor Total</p>
+          </div>
+
+          {/* Active Deals */}
+          <div className="text-center">
+            <div className="text-sm font-bold text-gray-900">
+              {intelligentData.activeDeals}
+            </div>
+            <p className="text-xs text-gray-500">Negócios</p>
+          </div>
+        </div>
+      )}
+
+      {/* Próxima ação */}
+      <div className="bg-gray-50 rounded-xl p-3 mb-4">
+        <div className="flex items-center gap-2">
+          <Target className="w-4 h-4 text-blue-600" />
+          <span className="text-sm text-gray-700 flex-1">
+            {intelligentData.nextAction}
+          </span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      {showActions && (
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Clock className="w-3 h-3" />
+            <span>Último contacto: {intelligentData.lastContactFormatted}</span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => handleActionClick('call', e)}
+              className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              title="Telefonar"
+            >
+              <Phone className="w-4 h-4" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => handleActionClick('email', e)}
+              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Enviar email"
+            >
+              <Mail className="w-4 h-4" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => handleActionClick('edit', e)}
+              className="p-2 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+              title="Editar"
+            >
+              <Edit3 className="w-4 h-4" />
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => handleActionClick('view', e)}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+              title="Ver detalhes"
+            >
+              <Eye className="w-4 h-4" />
+            </motion.button>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 };
 
 // =========================================
-// 🧠 FUNÇÕES INTELIGENTES
+// 🎨 COMPACT VARIANT
 // =========================================
 
-/**
- * Calcular score de engagement baseado em atividade
- */
-function calculateEngagementScore(client) {
-  let score = 0;
-  
-  // Base score
-  score += 20;
-  
-  // Dados completos (+30)
-  if (client.dadosPessoais?.email) score += 5;
-  if (client.dadosPessoais?.telefone) score += 5;
-  if (client.dadosPessoais?.morada) score += 5;
-  if (client.dadosBancarios?.iban) score += 5;
-  if (client.documentos?.length > 0) score += 10;
-  
-  // Atividade recente (+30)
-  const now = new Date();
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  
-  if (client.deals?.some(deal => new Date(deal.updatedAt) > weekAgo)) score += 15;
-  if (client.historicoComunicacao?.some(comm => new Date(comm.data) > weekAgo)) score += 15;
-  
-  // Deals ativos (+20)
-  const activeDeals = client.deals?.filter(deal => 
-    !['concluido', 'cancelado'].includes(deal.status)
-  )?.length || 0;
-  
-  score += Math.min(20, activeDeals * 5);
-  
-  return Math.min(100, Math.max(0, score));
-}
+const CompactCard = ({ 
+  client, 
+  intelligentData, 
+  onActionClick, 
+  onClick, 
+  className 
+}) => (
+  <motion.div
+    layout
+    initial={{ opacity: 0, scale: 0.9 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.9 }}
+    whileHover={{ scale: 1.02 }}
+    onClick={onClick}
+    className={`
+      bg-white rounded-xl border border-gray-200 p-4
+      cursor-pointer transition-all duration-200
+      hover:border-blue-300 hover:shadow-md
+      ${className}
+    `}
+  >
+    <div className="flex items-center gap-3">
+      {/* Avatar compacto */}
+      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center text-white font-bold">
+        {intelligentData.initials}
+      </div>
 
-/**
- * Obter data do último contacto
- */
-function getLastContactDate(client) {
-  if (!client.historicoComunicacao || client.historicoComunicacao.length === 0) {
-    return null;
-  }
-  
-  const dates = client.historicoComunicacao.map(comm => new Date(comm.data));
-  return new Date(Math.max(...dates));
-}
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <h4 className="font-semibold text-gray-900 truncate">
+          {client?.dadosPessoais?.nome}
+        </h4>
+        <p className="text-sm text-gray-500 truncate">
+          {client?.dadosPessoais?.email}
+        </p>
+      </div>
 
-/**
- * Sugerir próxima ação baseada no estado do cliente
- */
-function getNextSuggestedAction(client) {
-  // Aniversário hoje
-  if (client.dadosPessoais?.dataNascimento) {
-    const birthday = new Date(client.dadosPessoais.dataNascimento);
-    const today = new Date();
-    if (birthday.getMonth() === today.getMonth() && birthday.getDate() === today.getDate()) {
-      return "🎉 Enviar felicitações de aniversário";
-    }
-  }
-  
-  // Deals urgentes
-  const urgentDeals = client.deals?.filter(deal => 
-    ['proposta_enviada', 'cpcv_assinado', 'escritura_agendada'].includes(deal.status)
-  ) || [];
-  
-  if (urgentDeals.length > 0) {
-    return `📋 Acompanhar ${urgentDeals.length} negócio${urgentDeals.length > 1 ? 's' : ''} urgente${urgentDeals.length > 1 ? 's' : ''}`;
-  }
-  
-  // Sem contacto recente
-  const lastContact = getLastContactDate(client);
-  if (!lastContact || (new Date() - lastContact) > (30 * 24 * 60 * 60 * 1000)) {
-    return "📞 Contactar - sem comunicação há mais de 30 dias";
-  }
-  
-  // Dados incompletos
-  if (!client.dadosPessoais?.telefone) {
-    return "📋 Completar dados de contacto";
-  }
-  
-  if (!client.documentos || client.documentos.length === 0) {
-    return "📄 Solicitar documentos em falta";
-  }
-  
-  // Default
-  return "✨ Agendar próximo contacto";
-}
+      {/* Score */}
+      <div className={`
+        w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold
+        ${intelligentData.engagementColor}
+      `}>
+        {intelligentData.engagementScore}
+      </div>
 
-export default ClientCard;
+      {/* Quick actions */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={(e) => onActionClick('call', e)}
+          className="p-1 text-gray-400 hover:text-green-600 rounded"
+        >
+          <Phone className="w-4 h-4" />
+        </button>
+        <button
+          onClick={(e) => onActionClick('edit', e)}
+          className="p-1 text-gray-400 hover:text-purple-600 rounded"
+        >
+          <Edit3 className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  </motion.div>
+);
+
+// =========================================
+// 🎨 DETAILED VARIANT
+// =========================================
+
+const DetailedCard = ({ 
+  client, 
+  intelligentData, 
+  onActionClick, 
+  onClick,
+  showActions,
+  showMetrics,
+  className 
+}) => (
+  <motion.div
+    layout
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -20 }}
+    whileHover={{ 
+      scale: 1.02,
+      boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
+    }}
+    onClick={onClick}
+    className={`
+      bg-white rounded-3xl border border-gray-200 p-8
+      cursor-pointer transition-all duration-300 overflow-hidden
+      hover:border-blue-300 group shadow-lg
+      ${className}
+    `}
+  >
+    {/* Header expandido */}
+    <div className="flex items-start justify-between mb-6">
+      <div className="flex items-start gap-4">
+        {/* Avatar grande */}
+        <div className="relative">
+          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center text-white font-bold text-xl shadow-xl">
+            {intelligentData.initials}
+          </div>
+          
+          {/* Badges do avatar */}
+          <div className="absolute -top-2 -right-2 flex flex-col gap-1">
+            {intelligentData.isBirthday && (
+              <div className="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center text-xs">
+                🎂
+              </div>
+            )}
+            {intelligentData.hasUrgent && (
+              <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-3 h-3 text-white" />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Info detalhada */}
+        <div className="flex-1">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {client?.dadosPessoais?.nome}
+          </h2>
+          
+          <div className="space-y-2">
+            {client?.dadosPessoais?.email && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <Mail className="w-4 h-4" />
+                <span>{client.dadosPessoais.email}</span>
+              </div>
+            )}
+            
+            {client?.dadosPessoais?.telefone && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <Phone className="w-4 h-4" />
+                <span>{formatPhone(client.dadosPessoais.telefone)}</span>
+              </div>
+            )}
+            
+            {client?.dadosPessoais?.morada && (
+              <div className="flex items-center gap-2 text-gray-600">
+                <MapPin className="w-4 h-4" />
+                <span className="truncate">{client.dadosPessoais.morada}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Engagement Score grande */}
+      <div className="text-center">
+        <div className={`
+          w-16 h-16 rounded-2xl flex items-center justify-center text-lg font-bold
+          ${intelligentData.engagementColor} shadow-lg
+        `}>
+          {intelligentData.engagementScore}
+        </div>
+        <p className="text-sm text-gray-500 mt-2">
+          {intelligentData.engagementLabel}
+        </p>
+      </div>
+    </div>
+
+    {/* Roles expandidos */}
+    {client?.roles?.length > 0 && (
+      <div className="flex flex-wrap gap-2 mb-6">
+        {client.roles.map((role, index) => (
+          <span
+            key={index}
+            className={`px-4 py-2 rounded-xl text-sm font-medium ${getRoleColor(role)}`}
+          >
+            {ClientRoleLabels[role] || role}
+          </span>
+        ))}
+      </div>
+    )}
+
+    {/* Métricas detalhadas */}
+    {showMetrics && (
+      <div className="grid grid-cols-4 gap-6 mb-6 py-6 border-t border-b border-gray-100">
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-900">
+            {intelligentData.formattedValue}
+          </div>
+          <p className="text-sm text-gray-500">Valor Total</p>
+        </div>
+
+        <div className="text-center">
+          <div className="text-2xl font-bold text-blue-600">
+            {intelligentData.activeDeals}
+          </div>
+          <p className="text-sm text-gray-500">Negócios Ativos</p>
+        </div>
+
+        <div className="text-center">
+          <div className="text-2xl font-bold text-green-600">
+            {intelligentData.completedDeals}
+          </div>
+          <p className="text-sm text-gray-500">Concluídos</p>
+        </div>
+
+        <div className="text-center">
+          <div className="text-2xl font-bold text-purple-600">
+            {client?.documentos?.length || 0}
+          </div>
+          <p className="text-sm text-gray-500">Documentos</p>
+        </div>
+      </div>
+    )}
+
+    {/* Próxima ação expandida */}
+    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-4 mb-6">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
+          <Target className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <p className="font-semibold text-gray-900">Próxima ação:</p>
+          <p className="text-gray-600">{intelligentData.nextAction}</p>
+        </div>
+      </div>
+    </div>
+
+    {/* Actions expandidas */}
+    {showActions && (
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Clock className="w-4 h-4" />
+          <span>Último contacto: {intelligentData.lastContactFormatted}</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={(e) => onActionClick('call', e)}
+            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors"
+          >
+            <Phone className="w-4 h-4" />
+            <span>Ligar</span>
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={(e) => onActionClick('email', e)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+          >
+            <Mail className="w-4 h-4" />
+            <span>Email</span>
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={(e) => onActionClick('edit', e)}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors"
+          >
+            <Edit3 className="w-4 h-4" />
+            <span>Editar</span>
+          </motion.button>
+        </div>
+      </div>
+    )}
+  </motion.div>
+);
+
+export default React.memo(ClientCard);
