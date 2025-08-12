@@ -1,709 +1,328 @@
 // =========================================
-// 🔥 FIREBASE SERVICE - MÓDULO CLIENTES
+// 🔥 SERVICE - Clientes (Mock Temporário)
 // =========================================
-// Service para operações CRUD dos clientes no Firestore
-// Inclui paginação, filtros, estatísticas e operações avançadas
-
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  orderBy, 
-  limit, 
-  startAfter,
-  getCountFromServer,
-  writeBatch,
-  serverTimestamp,
-  arrayUnion,
-  arrayRemove
-} from 'firebase/firestore';
-import { db } from '@/shared/services/firebase/config';
-import { PAGINATION } from '../types/enums';
-
-// =========================================
-// 🏗️ CONFIGURAÇÕES BASE
-// =========================================
-
-const COLLECTION_NAME = 'clients';
-const getClientsCollection = (userId) => collection(db, 'users', userId, COLLECTION_NAME);
-
-// =========================================
-// 🔍 FUNÇÕES DE QUERY BUILDER
-// =========================================
+// Service temporário para desenvolvimento
+// Será substituído pela integração Firebase real
 
 /**
- * Constrói query do Firestore baseada nos filtros
+ * Mock data para desenvolvimento
  */
-const buildQuery = (userId, filters = {}, pagination = {}) => {
-  let q = query(getClientsCollection(userId));
-  
-  // ===== FILTROS =====
-  
-  // Filtro por status ativo
-  if (filters.ativo !== null && filters.ativo !== undefined) {
-    q = query(q, where('ativo', '==', filters.ativo));
+const mockClients = [
+  {
+    id: '1',
+    dadosPessoais: {
+      nome: 'João Silva',
+      email: 'joao.silva@email.com',
+      telefone: '912345678',
+      morada: 'Rua das Flores, 123, Aveiro',
+      dataNascimento: '1985-03-15',
+      naturalidade: 'Aveiro',
+      nacionalidade: 'Portuguesa',
+      residencia: 'Aveiro',
+      nif: '123456789',
+      contribuinte: '123456789',
+      numCartaoCidadao: '12345678 9 ZZ0',
+      estadoCivil: 'casado'
+    },
+    roles: ['comprador', 'investidor'],
+    origem: 'website',
+    ativo: true,
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-08-12T10:00:00Z',
+    deals: [
+      {
+        id: 'deal1',
+        tipo: 'compra',
+        status: 'proposta_enviada',
+        valor: 250000,
+        updatedAt: '2024-08-10T10:00:00Z'
+      }
+    ],
+    historicoComunicacao: [
+      {
+        id: 'comm1',
+        tipo: 'email',
+        data: '2024-08-10T14:30:00Z',
+        assunto: 'Proposta de Compra'
+      }
+    ],
+    documentos: [
+      {
+        id: 'doc1',
+        nome: 'CC_JoaoSilva.pdf',
+        categoria: 'cartao_cidadao',
+        url: '/docs/cc_joao.pdf'
+      }
+    ]
+  },
+  {
+    id: '2',
+    dadosPessoais: {
+      nome: 'Maria Santos',
+      email: 'maria.santos@email.com',
+      telefone: '923456789',
+      morada: 'Avenida Central, 456, Porto',
+      dataNascimento: '1990-07-22',
+      naturalidade: 'Porto',
+      nacionalidade: 'Portuguesa',
+      residencia: 'Porto',
+      nif: '987654321',
+      contribuinte: '987654321',
+      numCartaoCidadao: '98765432 1 AA9',
+      estadoCivil: 'solteiro'
+    },
+    roles: ['vendedor'],
+    origem: 'referencia',
+    ativo: true,
+    createdAt: '2024-02-20T15:00:00Z',
+    updatedAt: '2024-08-11T15:00:00Z',
+    deals: [
+      {
+        id: 'deal2',
+        tipo: 'venda',
+        status: 'escritura_agendada',
+        valor: 180000,
+        updatedAt: '2024-08-11T15:00:00Z'
+      }
+    ],
+    historicoComunicacao: [
+      {
+        id: 'comm2',
+        tipo: 'telefone',
+        data: '2024-08-11T16:00:00Z',
+        assunto: 'Agendamento Escritura'
+      }
+    ],
+    documentos: []
+  },
+  {
+    id: '3',
+    dadosPessoais: {
+      nome: 'Pedro Costa',
+      email: 'pedro.costa@email.com',
+      telefone: '934567890',
+      morada: 'Rua do Sol, 789, Lisboa',
+      dataNascimento: '1995-08-12',
+      naturalidade: 'Lisboa',
+      nacionalidade: 'Portuguesa',
+      residencia: 'Lisboa',
+      nif: '456789123',
+      contribuinte: '456789123',
+      numCartaoCidadao: '45678912 3 BB8',
+      estadoCivil: 'solteiro'
+    },
+    roles: ['inquilino'],
+    origem: 'redes_sociais',
+    ativo: true,
+    createdAt: '2024-08-12T09:00:00Z',
+    updatedAt: '2024-08-12T09:00:00Z',
+    deals: [],
+    historicoComunicacao: [],
+    documentos: []
   }
-  
-  // Filtro por roles (array-contains-any)
-  if (filters.roles && filters.roles.length > 0) {
-    q = query(q, where('roles', 'array-contains-any', filters.roles));
-  }
-  
-  // Filtro por estado civil
-  if (filters.estadoCivil && filters.estadoCivil.length > 0) {
-    q = query(q, where('dadosPessoais.estadoCivil', 'in', filters.estadoCivil));
-  }
-  
-  // Filtro por responsável
-  if (filters.responsavel) {
-    q = query(q, where('responsavel', '==', filters.responsavel));
-  }
-  
-  // Filtro por origem
-  if (filters.origem && filters.origem.length > 0) {
-    q = query(q, where('origem', 'in', filters.origem));
-  }
-  
-  // Filtro por data de criação (range)
-  if (filters.dataInicio) {
-    q = query(q, where('createdAt', '>=', new Date(filters.dataInicio)));
-  }
-  
-  if (filters.dataFim) {
-    q = query(q, where('createdAt', '<=', new Date(filters.dataFim)));
-  }
-  
-  // ===== ORDENAÇÃO =====
-  q = query(q, orderBy('createdAt', 'desc'));
-  
-  // ===== PAGINAÇÃO =====
-  if (pagination.limit) {
-    q = query(q, limit(pagination.limit));
-  }
-  
-  if (pagination.startAfter) {
-    q = query(q, startAfter(pagination.startAfter));
-  }
-  
-  return q;
-};
+];
 
 /**
- * Aplica filtros de pesquisa em memória (para campos que não são indexados)
+ * Simular delay de rede
  */
-const applyInMemoryFilters = (clients, filters) => {
-  let filtered = [...clients];
-  
-  // Pesquisa por texto (nome, email, telefone)
-  if (filters.search) {
-    const searchLower = filters.search.toLowerCase();
-    filtered = filtered.filter(client => {
-      const nome = client.dadosPessoais?.nome?.toLowerCase() || '';
-      const email = client.dadosPessoais?.email?.toLowerCase() || '';
-      const telefone = client.dadosPessoais?.telefone?.toLowerCase() || '';
-      
-      return nome.includes(searchLower) || 
-             email.includes(searchLower) || 
-             telefone.includes(searchLower);
-    });
-  }
-  
-  // Filtro por ter deals ativos
-  if (filters.temDeals !== null && filters.temDeals !== undefined) {
-    filtered = filtered.filter(client => {
-      const hasDeals = client.deals && client.deals.length > 0;
-      return filters.temDeals ? hasDeals : !hasDeals;
-    });
-  }
-  
-  // Filtro por status dos deals
-  if (filters.statusDeals && filters.statusDeals.length > 0) {
-    filtered = filtered.filter(client => {
-      if (!client.deals || client.deals.length === 0) return false;
-      return client.deals.some(deal => filters.statusDeals.includes(deal.status));
-    });
-  }
-  
-  return filtered;
-};
-
-// =========================================
-// 🔥 OPERAÇÕES CRUD PRINCIPAIS
-// =========================================
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Buscar lista de clientes com filtros e paginação
+ * Service para gestão de clientes (Mock)
  */
-export const getClients = async (userId, options = {}) => {
-  try {
+const clientsService = {
+  /**
+   * Buscar lista de clientes
+   */
+  async getClients(userId, options = {}) {
+    await delay(500); // Simular latência
+    
     const {
-      filters = {},
       page = 1,
-      limit = PAGINATION.DEFAULT_LIMIT,
-      startAfterDoc = null
+      limit = 20,
+      search = '',
+      filters = {}
     } = options;
-    
-    // Construir query
-    const q = buildQuery(userId, filters, { 
-      limit: limit + 1, // +1 para verificar se há mais páginas
-      startAfter: startAfterDoc 
-    });
-    
-    // Executar query
-    const snapshot = await getDocs(q);
-    
-    // Processar resultados
-    let clients = [];
-    snapshot.forEach(doc => {
-      clients.push({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate()
-      });
-    });
-    
-    // Verificar se há mais páginas
-    const hasMore = clients.length > limit;
-    if (hasMore) {
-      clients = clients.slice(0, limit); // Remover o item extra
+
+    let filteredClients = [...mockClients];
+
+    // Aplicar pesquisa
+    if (search) {
+      const searchLower = search.toLowerCase();
+      filteredClients = filteredClients.filter(client =>
+        client.dadosPessoais?.nome?.toLowerCase().includes(searchLower) ||
+        client.dadosPessoais?.email?.toLowerCase().includes(searchLower) ||
+        client.dadosPessoais?.telefone?.includes(search)
+      );
     }
-    
-    // Aplicar filtros em memória
-    clients = applyInMemoryFilters(clients, filters);
-    
-    // Obter contagem total (apenas na primeira página)
-    let total = 0;
-    if (page === 1) {
-      const countQuery = buildQuery(userId, filters);
-      const countSnapshot = await getCountFromServer(countQuery);
-      total = countSnapshot.data().count;
+
+    // Aplicar filtros
+    if (filters.roles && filters.roles.length > 0) {
+      filteredClients = filteredClients.filter(client =>
+        client.roles?.some(role => filters.roles.includes(role))
+      );
     }
-    
+
+    if (filters.status === 'active') {
+      filteredClients = filteredClients.filter(client => client.ativo);
+    } else if (filters.status === 'inactive') {
+      filteredClients = filteredClients.filter(client => !client.ativo);
+    }
+
+    // Paginação
+    const total = filteredClients.length;
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedClients = filteredClients.slice(startIndex, endIndex);
+
     return {
-      data: clients,
+      data: paginatedClients,
       total,
       page,
       limit,
-      hasMore: hasMore && clients.length === limit,
-      lastDoc: clients.length > 0 ? snapshot.docs[clients.length - 1] : null
+      hasMore: endIndex < total,
+      hasPrev: page > 1
     };
-    
-  } catch (error) {
-    console.error('Erro ao buscar clientes:', error);
-    throw new Error(`Falha ao carregar clientes: ${error.message}`);
-  }
-};
+  },
 
-/**
- * Buscar cliente específico por ID
- */
-export const getClient = async (userId, clientId) => {
-  try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
-    const snapshot = await getDoc(clientRef);
+  /**
+   * Buscar cliente específico
+   */
+  async getClient(userId, clientId) {
+    await delay(300);
     
-    if (!snapshot.exists()) {
+    const client = mockClients.find(c => c.id === clientId);
+    
+    if (!client) {
       throw new Error('Cliente não encontrado');
     }
     
-    const data = snapshot.data();
-    return {
-      id: snapshot.id,
-      ...data,
-      createdAt: data.createdAt?.toDate(),
-      updatedAt: data.updatedAt?.toDate()
-    };
-    
-  } catch (error) {
-    console.error('Erro ao buscar cliente:', error);
-    throw new Error(`Falha ao carregar cliente: ${error.message}`);
-  }
-};
+    return client;
+  },
 
-/**
- * Criar novo cliente
- */
-export const createClient = async (userId, clientData) => {
-  try {
-    // Preparar dados com timestamps
-    const dataToSave = {
+  /**
+   * Criar novo cliente
+   */
+  async createClient(userId, clientData) {
+    await delay(800);
+    
+    const newClient = {
+      id: Date.now().toString(),
       ...clientData,
       ativo: true,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-      createdBy: userId,
-      updatedBy: userId,
-      // Garantir arrays vazios se não existirem
-      documentos: clientData.documentos || [],
-      deals: clientData.deals || [],
-      historicoComunicacao: clientData.historicoComunicacao || []
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      deals: [],
+      historicoComunicacao: [],
+      documentos: []
     };
-    
-    // Criar documento
-    const docRef = await addDoc(getClientsCollection(userId), dataToSave);
-    
-    // Buscar o documento criado para retornar com dados completos
-    const createdClient = await getClient(userId, docRef.id);
-    
-    return createdClient;
-    
-  } catch (error) {
-    console.error('Erro ao criar cliente:', error);
-    throw new Error(`Falha ao criar cliente: ${error.message}`);
-  }
-};
 
-/**
- * Atualizar cliente existente
- */
-export const updateClient = async (userId, clientId, updates) => {
-  try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
+    // Adicionar à lista mock
+    mockClients.unshift(newClient);
     
-    // Preparar dados de atualização
-    const dataToUpdate = {
+    return newClient;
+  },
+
+  /**
+   * Atualizar cliente
+   */
+  async updateClient(userId, clientId, updates) {
+    await delay(600);
+    
+    const clientIndex = mockClients.findIndex(c => c.id === clientId);
+    
+    if (clientIndex === -1) {
+      throw new Error('Cliente não encontrado');
+    }
+    
+    const updatedClient = {
+      ...mockClients[clientIndex],
       ...updates,
-      updatedAt: serverTimestamp(),
-      updatedBy: userId
+      updatedAt: new Date().toISOString()
     };
     
-    // Atualizar documento
-    await updateDoc(clientRef, dataToUpdate);
+    mockClients[clientIndex] = updatedClient;
     
-    // Retornar cliente atualizado
-    const updatedClient = await getClient(userId, clientId);
     return updatedClient;
-    
-  } catch (error) {
-    console.error('Erro ao atualizar cliente:', error);
-    throw new Error(`Falha ao atualizar cliente: ${error.message}`);
-  }
-};
+  },
 
-/**
- * Deletar cliente
- */
-export const deleteClient = async (userId, clientId) => {
-  try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
-    await deleteDoc(clientRef);
+  /**
+   * Deletar cliente
+   */
+  async deleteClient(userId, clientId) {
+    await delay(400);
     
-    return { success: true, message: 'Cliente deletado com sucesso' };
+    const clientIndex = mockClients.findIndex(c => c.id === clientId);
     
-  } catch (error) {
-    console.error('Erro ao deletar cliente:', error);
-    throw new Error(`Falha ao deletar cliente: ${error.message}`);
-  }
-};
+    if (clientIndex === -1) {
+      throw new Error('Cliente não encontrado');
+    }
+    
+    mockClients.splice(clientIndex, 1);
+    
+    return { success: true };
+  },
 
-/**
- * Deletar múltiplos clientes (batch operation)
- */
-export const deleteMultipleClients = async (userId, clientIds) => {
-  try {
-    const batch = writeBatch(db);
+  /**
+   * Buscar estatísticas
+   */
+  async getClientStats(userId) {
+    await delay(200);
     
-    clientIds.forEach(clientId => {
-      const clientRef = doc(getClientsCollection(userId), clientId);
-      batch.delete(clientRef);
+    const activeClients = mockClients.filter(c => c.ativo);
+    const inactiveClients = mockClients.filter(c => !c.ativo);
+    
+    const now = new Date();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+    
+    const newThisMonth = mockClients.filter(client => {
+      const created = new Date(client.createdAt);
+      return created.getMonth() === thisMonth && created.getFullYear() === thisYear;
     });
-    
-    await batch.commit();
-    
-    return { 
-      success: true, 
-      message: `${clientIds.length} clientes deletados com sucesso` 
-    };
-    
-  } catch (error) {
-    console.error('Erro ao deletar múltiplos clientes:', error);
-    throw new Error(`Falha ao deletar clientes: ${error.message}`);
-  }
-};
 
-// =========================================
-// 📊 OPERAÇÕES DE ESTATÍSTICAS
-// =========================================
-
-/**
- * Buscar estatísticas dos clientes
- */
-export const getClientStats = async (userId) => {
-  try {
-    // Buscar todos os clientes (sem limite para estatísticas)
-    const q = query(
-      getClientsCollection(userId),
-      orderBy('createdAt', 'desc')
-    );
-    
-    const snapshot = await getDocs(q);
-    
-    const clients = [];
-    snapshot.forEach(doc => {
-      clients.push({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate()
-      });
+    const birthdaysThisMonth = mockClients.filter(client => {
+      if (!client.dadosPessoais?.dataNascimento) return false;
+      const birthday = new Date(client.dadosPessoais.dataNascimento);
+      return birthday.getMonth() === thisMonth;
     });
-    
-    // Calcular estatísticas
-    const stats = {
-      total: clients.length,
-      ativos: clients.filter(c => c.ativo !== false).length,
-      inativos: clients.filter(c => c.ativo === false).length,
-      novosEsteMes: 0,
-      porRole: {},
-      porEstadoCivil: {},
-      porOrigem: {},
-      totalDeals: 0,
-      dealsAtivos: 0,
-      valorTotalDeals: 0
-    };
-    
-    // Calcular novos este mês
-    const inicioMes = new Date();
-    inicioMes.setDate(1);
-    inicioMes.setHours(0, 0, 0, 0);
-    
-    stats.novosEsteMes = clients.filter(c => 
-      c.createdAt && c.createdAt >= inicioMes
-    ).length;
-    
-    // Calcular estatísticas por categoria
-    clients.forEach(client => {
-      // Por role
-      if (client.roles) {
-        client.roles.forEach(role => {
-          stats.porRole[role] = (stats.porRole[role] || 0) + 1;
-        });
-      }
-      
-      // Por estado civil
-      const estadoCivil = client.dadosPessoais?.estadoCivil;
-      if (estadoCivil) {
-        stats.porEstadoCivil[estadoCivil] = (stats.porEstadoCivil[estadoCivil] || 0) + 1;
-      }
-      
-      // Por origem
-      const origem = client.origem;
-      if (origem) {
-        stats.porOrigem[origem] = (stats.porOrigem[origem] || 0) + 1;
-      }
-      
-      // Deals
-      if (client.deals) {
-        stats.totalDeals += client.deals.length;
-        
-        client.deals.forEach(deal => {
-          if (deal.status !== 'concluido' && deal.status !== 'cancelado') {
-            stats.dealsAtivos += 1;
-          }
-          
-          if (deal.valor) {
-            stats.valorTotalDeals += deal.valor;
-          }
-        });
-      }
-    });
-    
-    return stats;
-    
-  } catch (error) {
-    console.error('Erro ao buscar estatísticas:', error);
-    throw new Error(`Falha ao carregar estatísticas: ${error.message}`);
-  }
-};
 
-// =========================================
-// 📄 OPERAÇÕES DE DOCUMENTOS
-// =========================================
+    const totalDealsValue = mockClients.reduce((sum, client) => {
+      const clientDealsValue = client.deals?.reduce((dealSum, deal) => 
+        dealSum + (deal.valor || 0), 0) || 0;
+      return sum + clientDealsValue;
+    }, 0);
 
-/**
- * Adicionar documento ao cliente
- */
-export const addDocumentToClient = async (userId, clientId, documentData) => {
-  try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
-    
-    // Adicionar documento ao array
-    await updateDoc(clientRef, {
-      documentos: arrayUnion({
-        ...documentData,
-        id: `doc_${Date.now()}`,
-        dataUpload: serverTimestamp(),
-        uploadedBy: userId
-      }),
-      updatedAt: serverTimestamp(),
-      updatedBy: userId
-    });
-    
-    return { success: true, message: 'Documento adicionado com sucesso' };
-    
-  } catch (error) {
-    console.error('Erro ao adicionar documento:', error);
-    throw new Error(`Falha ao adicionar documento: ${error.message}`);
-  }
-};
+    const totalDeals = mockClients.reduce((sum, client) => 
+      sum + (client.deals?.length || 0), 0);
 
-/**
- * Remover documento do cliente
- */
-export const removeDocumentFromClient = async (userId, clientId, documentData) => {
-  try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
-    
-    // Remover documento do array
-    await updateDoc(clientRef, {
-      documentos: arrayRemove(documentData),
-      updatedAt: serverTimestamp(),
-      updatedBy: userId
-    });
-    
-    return { success: true, message: 'Documento removido com sucesso' };
-    
-  } catch (error) {
-    console.error('Erro ao remover documento:', error);
-    throw new Error(`Falha ao remover documento: ${error.message}`);
-  }
-};
-
-// =========================================
-// 🤝 OPERAÇÕES DE DEALS
-// =========================================
-
-/**
- * Adicionar deal ao cliente
- */
-export const addDealToClient = async (userId, clientId, dealData) => {
-  try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
-    
-    const dealToAdd = {
-      ...dealData,
-      id: `deal_${Date.now()}`,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
-    };
-    
-    // Adicionar deal ao array
-    await updateDoc(clientRef, {
-      deals: arrayUnion(dealToAdd),
-      updatedAt: serverTimestamp(),
-      updatedBy: userId
-    });
-    
-    return { success: true, deal: dealToAdd };
-    
-  } catch (error) {
-    console.error('Erro ao adicionar deal:', error);
-    throw new Error(`Falha ao adicionar negócio: ${error.message}`);
-  }
-};
-
-/**
- * Atualizar deal do cliente
- */
-export const updateClientDeal = async (userId, clientId, dealId, updates) => {
-  try {
-    // Buscar cliente atual
-    const client = await getClient(userId, clientId);
-    
-    // Encontrar e atualizar o deal
-    const updatedDeals = client.deals.map(deal => {
-      if (deal.id === dealId) {
-        return {
-          ...deal,
-          ...updates,
-          updatedAt: new Date()
-        };
-      }
-      return deal;
-    });
-    
-    // Atualizar cliente com deals modificados
-    const clientRef = doc(getClientsCollection(userId), clientId);
-    await updateDoc(clientRef, {
-      deals: updatedDeals,
-      updatedAt: serverTimestamp(),
-      updatedBy: userId
-    });
-    
-    return { success: true, message: 'Deal atualizado com sucesso' };
-    
-  } catch (error) {
-    console.error('Erro ao atualizar deal:', error);
-    throw new Error(`Falha ao atualizar negócio: ${error.message}`);
-  }
-};
-
-// =========================================
-// 📞 OPERAÇÕES DE COMUNICAÇÃO
-// =========================================
-
-/**
- * Adicionar registro de comunicação
- */
-export const addCommunicationToClient = async (userId, clientId, communicationData) => {
-  try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
-    
-    const communicationToAdd = {
-      ...communicationData,
-      id: `comm_${Date.now()}`,
-      data: serverTimestamp(),
-      responsavel: userId,
-      lida: false
-    };
-    
-    // Adicionar comunicação ao histórico
-    await updateDoc(clientRef, {
-      historicoComunicacao: arrayUnion(communicationToAdd),
-      updatedAt: serverTimestamp(),
-      updatedBy: userId
-    });
-    
-    return { success: true, communication: communicationToAdd };
-    
-  } catch (error) {
-    console.error('Erro ao adicionar comunicação:', error);
-    throw new Error(`Falha ao registrar comunicação: ${error.message}`);
-  }
-};
-
-// =========================================
-// 🔍 OPERAÇÕES DE PESQUISA AVANÇADA
-// =========================================
-
-/**
- * Pesquisa avançada de clientes
- */
-export const searchClients = async (userId, searchTerm, options = {}) => {
-  try {
-    // Para pesquisa por texto, precisamos buscar todos e filtrar em memória
-    // Em produção, consideraria usar Algolia ou similar para pesquisa full-text
-    
-    const { limit = 20 } = options;
-    
-    // Buscar todos os clientes
-    const q = query(
-      getClientsCollection(userId),
-      orderBy('createdAt', 'desc'),
-      limit(100) // Limite maior para pesquisa
-    );
-    
-    const snapshot = await getDocs(q);
-    
-    let clients = [];
-    snapshot.forEach(doc => {
-      clients.push({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-        updatedAt: doc.data().updatedAt?.toDate()
-      });
-    });
-    
-    // Aplicar pesquisa em memória
-    const searchLower = searchTerm.toLowerCase();
-    const filtered = clients.filter(client => {
-      const nome = client.dadosPessoais?.nome?.toLowerCase() || '';
-      const email = client.dadosPessoais?.email?.toLowerCase() || '';
-      const telefone = client.dadosPessoais?.telefone?.replace(/\s/g, '') || '';
-      const nif = client.dadosPessoais?.nif || '';
-      const notas = client.notas?.toLowerCase() || '';
-      
-      return nome.includes(searchLower) || 
-             email.includes(searchLower) || 
-             telefone.includes(searchTerm.replace(/\s/g, '')) ||
-             nif.includes(searchTerm) ||
-             notas.includes(searchLower);
-    });
-    
     return {
-      data: filtered.slice(0, limit),
-      total: filtered.length,
-      hasMore: filtered.length > limit
+      total: mockClients.length,
+      active: activeClients.length,
+      inactive: inactiveClients.length,
+      newThisMonth: newThisMonth.length,
+      birthdaysThisMonth: birthdaysThisMonth.length,
+      hotClients: activeClients.filter(c => 
+        (c.deals?.length || 0) > 0
+      ).length,
+      avgDealsValue: totalDeals > 0 ? totalDealsValue / totalDeals : 0
     };
+  },
+
+  /**
+   * Pesquisar clientes
+   */
+  async searchClients(userId, query) {
+    await delay(300);
     
-  } catch (error) {
-    console.error('Erro na pesquisa:', error);
-    throw new Error(`Falha na pesquisa: ${error.message}`);
+    const searchLower = query.toLowerCase();
+    
+    return mockClients.filter(client =>
+      client.dadosPessoais?.nome?.toLowerCase().includes(searchLower) ||
+      client.dadosPessoais?.email?.toLowerCase().includes(searchLower) ||
+      client.dadosPessoais?.telefone?.includes(query)
+    );
   }
 };
 
-// =========================================
-// 🏷️ OPERAÇÕES DE EXPORT/IMPORT
-// =========================================
-
-/**
- * Exportar clientes para CSV/JSON
- */
-export const exportClients = async (userId, format = 'json', filters = {}) => {
-  try {
-    // Buscar todos os clientes filtrados
-    const result = await getClients(userId, { 
-      filters, 
-      limit: 1000 // Limite alto para export
-    });
-    
-    if (format === 'json') {
-      return {
-        data: result.data,
-        format: 'json',
-        timestamp: new Date().toISOString()
-      };
-    }
-    
-    // Para CSV, seria necessário converter os dados
-    // Esta é uma implementação básica
-    if (format === 'csv') {
-      const csvData = result.data.map(client => ({
-        id: client.id,
-        nome: client.dadosPessoais?.nome || '',
-        email: client.dadosPessoais?.email || '',
-        telefone: client.dadosPessoais?.telefone || '',
-        roles: client.roles?.join(', ') || '',
-        ativo: client.ativo ? 'Sim' : 'Não',
-        createdAt: client.createdAt?.toLocaleDateString() || ''
-      }));
-      
-      return {
-        data: csvData,
-        format: 'csv',
-        timestamp: new Date().toISOString()
-      };
-    }
-    
-    throw new Error('Formato não suportado');
-    
-  } catch (error) {
-    console.error('Erro no export:', error);
-    throw new Error(`Falha no export: ${error.message}`);
-  }
-};
-
-// Export default com todas as funções
-export default {
-  getClients,
-  getClient,
-  createClient,
-  updateClient,
-  deleteClient,
-  deleteMultipleClients,
-  getClientStats,
-  addDocumentToClient,
-  removeDocumentFromClient,
-  addDealToClient,
-  updateClientDeal,
-  addCommunicationToClient,
-  searchClients,
-  exportClients
-};
+export default clientsService;

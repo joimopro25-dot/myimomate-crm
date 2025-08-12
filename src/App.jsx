@@ -1,4 +1,5 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Link } from 'react-router-dom'
+import ClientsPage from './features/clients/pages/ClientsPage'
 
 function App() {
   return (
@@ -14,9 +15,12 @@ function App() {
                 Real Estate CRM - Em desenvolvimento
               </p>
               <div className="space-x-4">
-                <button className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
-                  Começar
-                </button>
+                <Link 
+                  to="/clientes"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition inline-block"
+                >
+                  Ver Clientes
+                </Link>
                 <button className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">
                   Saiba Mais
                 </button>
@@ -24,6 +28,10 @@ function App() {
             </div>
           </div>
         } />
+        
+        {/* Rota para o módulo de clientes */}
+        <Route path="/clientes" element={<ClientsPage />} />
+        <Route path="/clientes/*" element={<ClientsPage />} />
       </Routes>
     </div>
   )
