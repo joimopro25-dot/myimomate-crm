@@ -1,897 +1,841 @@
 // =========================================
-// 🎨 COMPONENT - ClientForm REVOLUCIONÁRIO
+// 🎣 HOOK FORMULÁRIOS - useClientForm CORRIGIDO
 // =========================================
-// Formulário multi-step que transforma criação de clientes
-// Interface que guia consultores como um GPS inteligente
+// CORREÇÃO DEFINITIVA: Apenas a linha que causa re-renders
 
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar,
-  CreditCard,
-  Heart,
-  Users,
-  FileText,
-  Sparkles,
-  ChevronRight,
-  ChevronLeft,
-  Check,
-  AlertCircle,
-  Info,
-  Star,
-  Gift,
-  Zap,
-  Target,
-  Save,
-  Send,
-  Camera,
-  Upload,
-  Eye,
-  EyeOff
-} from 'lucide-react';
-import { useClientForm } from '../../hooks/useClientForm';
+import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useAuth } from '@/shared/hooks/useAuth';
+import { useClients } from './useClients';
 import { 
   EstadoCivil, 
-  EstadoCivilLabels,
-  ComunhaoBens,
-  ComunhaoBensLabels,
-  ClientRole,
-  ClientRoleLabels,
-  ClientRoleColors,
-  ClientSource,
-  ClientSourceLabels,
+  ClientRole, 
+  REQUIRED_FIELDS, 
+  VALIDATION_REGEX,
   ESTADOS_COM_CONJUGE 
-} from '../../types/enums';
+} from '../types/enums';
 
 /**
- * ClientForm - O formulário mais inteligente e cativante
- * Transforma criação de clientes numa experiência envolvente
+ * Hook para gestão de formulários de clientes
+ * @param {Object} options - Opções de configuração
+ * @returns {Object} Estado e ações do formulário
  */
-const ClientForm = ({ 
-  initialData = null,
-  mode = 'create', // 'create' | 'edit'
-  onSuccess,
-  onCancel,
-  className = ''
-}) => {
+export const useClientForm = (options = {}) => {
   const {
+    initialData = null,
+    mode = 'create', // 'create' | 'edit'
+    onSuccess = null,
+    onError = null,
+    autoSave = false,
+    autoSaveInterval = 30000 // 30 segundos
+  } = options;
+
+  const { user } = useAuth();
+  const { createClient, updateClient } = useClients({ autoFetch: false });
+
+  // =========================================
+  // 📊 FORM STATE
+  // =========================================
+
+  const [currentStep, setCurrentStep] = useState(1);
+  const [formData, setFormData] = useState(() => ({
+    // Passo 1: Dados Pessoais
+    dadosPessoais: {
+      nome: '',
+      email: '',
+      telefone: '',
+      morada: '',
+      dataNascimento: '',
+      naturalidade: '',
+      nacionalidade: 'Portuguesa',
+      residencia: '',
+      nif: '',
+      contribuinte: '',
+      numCartaoCidadao: '',
+      estadoCivil: EstadoCivil.SOLTEIRO
+    },
+    
+    // Passo 2: Dados do Cônjuge (se aplicável)
+    conjuge: {
+      nome: '',
+      email: '',
+      telefone: '',
+      nif: '',
+      contribuinte: '',
+      numCartaoCidadao: '',
+      dataNascimento: '',
+      naturalidade: '',
+      nacionalidade: 'Portuguesa',
+      profissao: ''
+    },
+    comunhaoBens: null,
+    
+    // Passo 3: Dados Bancários
+    dadosBancarios: {
+      banco: '',
+      iban: '',
+      swift: '',
+      titular: '',
+      morada: ''
+    },
+    
+    // Passo 4: Configurações de Comunicação
+    comunicacoes: {
+      enviarAniversario: true,
+      lembretesVisitas: true,
+      lembretesPagamentos: true,
+      eventos: true,
+      marketing: false,
+      sms: true,
+      horaPreferida: '09:00',
+      diasPreferidos: ['segunda', 'terca', 'quarta', 'quinta', 'sexta']
+    },
+    
+    // Passo 5: Roles e Informações Gerais
+    roles: [],
+    notas: '',
+    origem: 'website',
+    responsavel: user?.uid || '',
+    
+    // Metadados
+    ativo: true,
+    ...initialData
+  }));
+
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+
+  // =========================================
+  // 🔍 VALIDATION FUNCTIONS
+  // =========================================
+
+  /**
+   * Validar campo específico
+   */
+  const validateField = useCallback((fieldPath, value) => {
+    const fieldErrors = [];
+
+    // Validações por campo
+    switch (fieldPath) {
+      case 'dadosPessoais.email':
+        if (value && !VALIDATION_REGEX.EMAIL.test(value)) {
+          fieldErrors.push('Email inválido');
+        }
+        break;
+        
+      case 'dadosPessoais.telefone':
+        if (value && !VALIDATION_REGEX.TELEFONE.test(value.replace(/\s/g, ''))) {
+          fieldErrors.push('Telefone inválido (formato: +351 xxx xxx xxx)');
+        }
+        break;
+        
+      case 'dadosPessoais.nif':
+        if (value && !VALIDATION_REGEX.NIF.test(value)) {
+          fieldErrors.push('NIF inválido (9 dígitos)');
+        }
+        break;
+        
+      case 'dadosBancarios.iban':
+        if (value && !VALIDATION_REGEX.IBAN.test(value.replace(/\s/g, ''))) {
+          fieldErrors.push('IBAN inválido (formato PT50...)');
+        }
+        break;
+        
+      case 'dadosPessoais.numCartaoCidadao':
+        if (value && !VALIDATION_REGEX.CARTAO_CIDADAO.test(value)) {
+          fieldErrors.push('Cartão de Cidadão inválido');
+        }
+        break;
+    }
+
+    return fieldErrors;
+  }, []);
+
+  /**
+   * Validar passo específico
+   */
+  const validateStep = useCallback((step) => {
+    const stepErrors = {};
+    let isValid = true;
+
+    // Campos obrigatórios por passo
+    const requiredForStep = REQUIRED_FIELDS[`STEP_${step}`] || [];
+    
+    requiredForStep.forEach(fieldPath => {
+      const value = getFieldValue(fieldPath);
+      if (!value || (typeof value === 'string' && value.trim() === '')) {
+        stepErrors[fieldPath] = ['Campo obrigatório'];
+        isValid = false;
+      }
+    });
+
+    // Validações específicas por passo
+    switch (step) {
+      case 1:
+        // Validar dados pessoais
+        Object.entries(formData.dadosPessoais).forEach(([field, value]) => {
+          const fieldPath = `dadosPessoais.${field}`;
+          const fieldErrors = validateField(fieldPath, value);
+          if (fieldErrors.length > 0) {
+            stepErrors[fieldPath] = fieldErrors;
+            isValid = false;
+          }
+        });
+        break;
+        
+      case 2:
+        // Validar dados do cônjuge (se casado)
+        if (ESTADOS_COM_CONJUGE.includes(formData.dadosPessoais.estadoCivil)) {
+          if (!formData.conjuge.nome.trim()) {
+            stepErrors['conjuge.nome'] = ['Nome do cônjuge é obrigatório'];
+            isValid = false;
+          }
+          if (!formData.comunhaoBens) {
+            stepErrors['comunhaoBens'] = ['Regime de bens é obrigatório'];
+            isValid = false;
+          }
+        }
+        break;
+        
+      case 3:
+        // Validar dados bancários (opcionais, mas se preenchidos devem ser válidos)
+        Object.entries(formData.dadosBancarios).forEach(([field, value]) => {
+          if (value) {
+            const fieldPath = `dadosBancarios.${field}`;
+            const fieldErrors = validateField(fieldPath, value);
+            if (fieldErrors.length > 0) {
+              stepErrors[fieldPath] = fieldErrors;
+              isValid = false;
+            }
+          }
+        });
+        break;
+        
+      case 5:
+        // Validar roles (pelo menos um)
+        if (!formData.roles || formData.roles.length === 0) {
+          stepErrors['roles'] = ['Pelo menos um role é obrigatório'];
+          isValid = false;
+        }
+        break;
+    }
+
+    return { isValid, errors: stepErrors };
+  }, [formData, validateField]);
+
+  /**
+   * Obter valor de campo por path
+   */
+  const getFieldValue = useCallback((fieldPath) => {
+    const parts = fieldPath.split('.');
+    let value = formData;
+    
+    for (const part of parts) {
+      value = value?.[part];
+    }
+    
+    return value;
+  }, [formData]);
+
+  // =========================================
+  // 🔄 FORM ACTIONS (CORREÇÃO AQUI!)
+  // =========================================
+
+  /**
+   * Atualizar campo do formulário
+   * 🔧 CORREÇÃO: Remover dependência [errors]
+   */
+  const updateField = useCallback((fieldPath, value) => {
+    setFormData(prev => {
+      const newData = { ...prev };
+      const parts = fieldPath.split('.');
+      let current = newData;
+      
+      // Navegar até o penúltimo nível
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!current[parts[i]]) {
+          current[parts[i]] = {};
+        }
+        current = current[parts[i]];
+      }
+      
+      // Definir o valor final
+      current[parts[parts.length - 1]] = value;
+      
+      return newData;
+    });
+    
+    // Marcar como touched
+    setTouched(prev => ({
+      ...prev,
+      [fieldPath]: true
+    }));
+    
+    // Marcar como dirty
+    setIsDirty(true);
+    
+    // Limpar erro deste campo (usando setState funcional)
+    setErrors(prev => {
+      if (prev[fieldPath]) {
+        const newErrors = { ...prev };
+        delete newErrors[fieldPath];
+        return newErrors;
+      }
+      return prev;
+    });
+  }, []); // 🔧 SEM DEPENDÊNCIAS!
+
+  /**
+   * Atualizar múltiplos campos
+   */
+  const updateFields = useCallback((updates) => {
+    Object.entries(updates).forEach(([fieldPath, value]) => {
+      updateField(fieldPath, value);
+    });
+  }, [updateField]);
+
+  /**
+   * Reset do formulário
+   */
+  const resetForm = useCallback(() => {
+    setFormData({
+      dadosPessoais: {
+        nome: '',
+        email: '',
+        telefone: '',
+        morada: '',
+        dataNascimento: '',
+        naturalidade: '',
+        nacionalidade: 'Portuguesa',
+        residencia: '',
+        nif: '',
+        contribuinte: '',
+        numCartaoCidadao: '',
+        estadoCivil: EstadoCivil.SOLTEIRO
+      },
+      conjuge: {
+        nome: '',
+        email: '',
+        telefone: '',
+        nif: '',
+        contribuinte: '',
+        numCartaoCidadao: '',
+        dataNascimento: '',
+        naturalidade: '',
+        nacionalidade: 'Portuguesa',
+        profissao: ''
+      },
+      comunhaoBens: null,
+      dadosBancarios: {
+        banco: '',
+        iban: '',
+        swift: '',
+        titular: '',
+        morada: ''
+      },
+      comunicacoes: {
+        enviarAniversario: true,
+        lembretesVisitas: true,
+        lembretesPagamentos: true,
+        eventos: true,
+        marketing: false,
+        sms: true,
+        horaPreferida: '09:00',
+        diasPreferidos: ['segunda', 'terca', 'quarta', 'quinta', 'sexta']
+      },
+      roles: [],
+      notas: '',
+      origem: 'website',
+      responsavel: user?.uid || '',
+      ativo: true,
+      ...initialData
+    });
+    setCurrentStep(1);
+    setErrors({});
+    setTouched({});
+    setIsDirty(false);
+  }, [initialData, user?.uid]);
+
+  // =========================================
+  // 🚀 NAVIGATION
+  // =========================================
+
+  /**
+   * Ir para próximo passo
+   */
+  const nextStep = useCallback(async () => {
+    const validation = validateStep(currentStep);
+    
+    if (!validation.isValid) {
+      setErrors(prev => ({ ...prev, ...validation.errors }));
+      return false;
+    }
+    
+    if (currentStep < 5) {
+      setCurrentStep(prev => prev + 1);
+      return true;
+    }
+    
+    return false;
+  }, [currentStep, validateStep]);
+
+  /**
+   * Voltar ao passo anterior
+   */
+  const prevStep = useCallback(() => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+    }
+  }, [currentStep]);
+
+  /**
+   * Ir para passo específico
+   */
+  const goToStep = useCallback((step) => {
+    if (step >= 1 && step <= 5) {
+      setCurrentStep(step);
+    }
+  }, []);
+
+  // =========================================
+  // 💾 SUBMIT FUNCTIONS
+  // =========================================
+
+  /**
+   * Submeter formulário
+   */
+  const submitForm = useCallback(async () => {
+    try {
+      setIsSubmitting(true);
+      setErrors({});
+      
+      // Validar todos os passos
+      let allValid = true;
+      let allErrors = {};
+      
+      for (let step = 1; step <= 5; step++) {
+        const validation = validateStep(step);
+        if (!validation.isValid) {
+          allValid = false;
+          allErrors = { ...allErrors, ...validation.errors };
+        }
+      }
+      
+      if (!allValid) {
+        setErrors(allErrors);
+        throw new Error('Formulário contém erros. Verifique todos os campos.');
+      }
+      
+      // Preparar dados para envio
+      const dataToSubmit = {
+        ...formData,
+        // Limpar dados do cônjuge se não casado
+        conjuge: ESTADOS_COM_CONJUGE.includes(formData.dadosPessoais.estadoCivil) 
+          ? formData.conjuge 
+          : null,
+        comunhaoBens: ESTADOS_COM_CONJUGE.includes(formData.dadosPessoais.estadoCivil) 
+          ? formData.comunhaoBens 
+          : null
+      };
+      
+      let result;
+      if (mode === 'create') {
+        result = await createClient(dataToSubmit);
+      } else {
+        result = await updateClient(initialData.id, dataToSubmit);
+      }
+      
+      setIsDirty(false);
+      
+      if (onSuccess) {
+        onSuccess(result);
+      }
+      
+      return result;
+      
+    } catch (error) {
+      if (onError) {
+        onError(error);
+      }
+      throw error;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [formData, mode, validateStep, createClient, updateClient, initialData?.id, onSuccess, onError]);
+
+  // =========================================
+  // 💾 AUTO SAVE
+  // =========================================
+
+  useEffect(() => {
+    if (!autoSave || !isDirty || mode !== 'edit') return;
+
+    const autoSaveTimer = setTimeout(async () => {
+      try {
+        await updateClient(initialData.id, formData);
+        setIsDirty(false);
+      } catch (error) {
+        console.error('Erro no auto-save:', error);
+      }
+    }, autoSaveInterval);
+
+    return () => clearTimeout(autoSaveTimer);
+  }, [autoSave, isDirty, mode, autoSaveInterval, formData, updateClient, initialData?.id]);
+
+  // =========================================
+  // 📊 COMPUTED VALUES
+  // =========================================
+
+  const computedValues = useMemo(() => {
+    const currentStepValidation = validateStep(currentStep);
+    
+    return {
+      // Step info
+      isFirstStep: currentStep === 1,
+      isLastStep: currentStep === 5,
+      canGoNext: currentStepValidation.isValid,
+      canGoPrev: currentStep > 1,
+      
+      // Form status
+      hasErrors: Object.keys(errors).length > 0,
+      isValid: Object.keys(errors).length === 0,
+      
+      // Conditional fields
+      needsSpouseData: ESTADOS_COM_CONJUGE.includes(formData.dadosPessoais.estadoCivil),
+      
+      // Progress
+      completedSteps: Array.from({ length: 5 }, (_, i) => {
+        const stepNum = i + 1;
+        const stepValidation = validateStep(stepNum);
+        return stepValidation.isValid;
+      }),
+      
+      progressPercentage: Math.round((currentStep / 5) * 100)
+    };
+  }, [currentStep, validateStep, errors, formData.dadosPessoais.estadoCivil]);
+
+  // =========================================
+  // 🎯 RETURN OBJECT
+  // =========================================
+
+  return {
+    // Form Data
     formData,
+    
+    // Current State
     currentStep,
     errors,
+    touched,
     isDirty,
     isSubmitting,
-    isFirstStep,
-    isLastStep,
-    canGoNext,
-    canGoPrev,
-    needsSpouseData,
-    progressPercentage,
-    completedSteps,
+    
+    // Computed
+    ...computedValues,
+    
+    // Actions
     updateField,
     updateFields,
+    resetForm,
+    
+    // Navigation
     nextStep,
     prevStep,
     goToStep,
-    submitForm,
-    resetForm
-  } = useClientForm({
-    initialData,
-    mode,
-    onSuccess,
-    autoSave: mode === 'edit'
-  });
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  // =========================================
-  // 🎯 STEP CONFIGURATIONS
-  // =========================================
-
-  const steps = [
-    {
-      id: 1,
-      title: 'Dados Pessoais',
-      subtitle: 'Vamos conhecer o seu cliente',
-      icon: User,
-      color: 'blue',
-      fields: ['nome', 'email', 'telefone']
-    },
-    {
-      id: 2,
-      title: 'Informações Familiares',
-      subtitle: 'Detalhes do estado civil e cônjuge',
-      icon: Heart,
-      color: 'pink',
-      fields: ['estadoCivil', 'conjuge', 'comunhaoBens']
-    },
-    {
-      id: 3,
-      title: 'Dados Bancários',
-      subtitle: 'Informações financeiras (opcional)',
-      icon: CreditCard,
-      color: 'green',
-      fields: ['banco', 'iban']
-    },
-    {
-      id: 4,
-      title: 'Configurações',
-      subtitle: 'Preferências de comunicação',
-      icon: FileText,
-      color: 'purple',
-      fields: ['comunicacoes']
-    },
-    {
-      id: 5,
-      title: 'Finalização',
-      subtitle: 'Roles e informações gerais',
-      icon: Sparkles,
-      color: 'yellow',
-      fields: ['roles', 'origem']
-    }
-  ];
-
-  const currentStepConfig = steps[currentStep - 1];
-
-  // =========================================
-  // 🎨 COMPONENTES INTERNOS
-  // =========================================
-
-  const ProgressHeader = () => (
-    <div className="bg-white border-b border-gray-200 p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Progress Bar */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {mode === 'create' ? 'Novo Cliente' : 'Editar Cliente'}
-            </h2>
-            <div className="text-sm text-gray-500">
-              Passo {currentStep} de {steps.length}
-            </div>
-          </div>
-          
-          {/* Progress Steps */}
-          <div className="flex items-center gap-4">
-            {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center gap-4">
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => goToStep(step.id)}
-                  className={`
-                    relative w-10 h-10 rounded-full flex items-center justify-center
-                    transition-all duration-300 font-medium text-sm
-                    ${currentStep === step.id 
-                      ? getStepActiveClass(step.color)
-                      : completedSteps[index]
-                        ? 'bg-green-500 text-white'
-                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
-                    }
-                  `}
-                >
-                  {completedSteps[index] ? (
-                    <Check className="w-5 h-5" />
-                  ) : (
-                    <step.icon className="w-5 h-5" />
-                  )}
-                  
-                  {currentStep === step.id && (
-                    <motion.div
-                      layoutId="activeStep"
-                      className={`absolute inset-0 rounded-full ${getStepBgClass(step.color)} opacity-20 scale-125`}
-                      transition={{ type: "spring", duration: 0.5 }}
-                    />
-                  )}
-                </motion.button>
-                
-                {index < steps.length - 1 && (
-                  <div className={`
-                    h-1 w-12 rounded transition-all duration-300
-                    ${completedSteps[index] ? 'bg-green-500' : 'bg-gray-200'}
-                  `} />
-                )}
-              </div>
-            ))}
-          </div>
-          
-          {/* Animated Progress Bar */}
-          <div className="mt-4 bg-gray-200 rounded-full h-2 overflow-hidden">
-            <motion.div
-              className={`h-full ${getProgressGradient(currentStepConfig.color)}`}
-              initial={{ width: 0 }}
-              animate={{ width: `${progressPercentage}%` }}
-              transition={{ duration: 0.5, ease: "easeOut" }}
-            />
-          </div>
-        </div>
-        
-        {/* Step Header */}
-        <motion.div
-          key={currentStep}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-          className="text-center"
-        >
-          <div className={`inline-flex items-center justify-center w-16 h-16 rounded-2xl ${getStepHeaderClass(currentStepConfig.color)} mb-4`}>
-            <currentStepConfig.icon className="w-8 h-8" />
-          </div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            {currentStepConfig.title}
-          </h3>
-          <p className="text-gray-600">
-            {currentStepConfig.subtitle}
-          </p>
-        </motion.div>
-      </div>
-    </div>
-  );
-
-  const FormField = ({ 
-    label, 
-    name, 
-    type = 'text', 
-    required = false, 
-    placeholder,
-    icon: Icon,
-    help,
-    value,
-    onChange,
-    options = [],
-    className = ''
-  }) => {
-    const error = errors[name];
-    const hasError = !!error;
-
-    return (
-      <div className={`space-y-2 ${className}`}>
-        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          {Icon && <Icon className="w-4 h-4" />}
-          <span>{label}</span>
-          {required && <span className="text-red-500">*</span>}
-        </label>
-        
-        <div className="relative">
-          {type === 'select' ? (
-            <select
-              value={value || ''}
-              onChange={(e) => onChange(e.target.value)}
-              className={`
-                w-full px-4 py-3 border rounded-xl focus:ring-2 transition-all
-                ${hasError 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                }
-              `}
-            >
-              <option value="">{placeholder}</option>
-              {options.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          ) : type === 'textarea' ? (
-            <textarea
-              value={value || ''}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              rows={4}
-              className={`
-                w-full px-4 py-3 border rounded-xl focus:ring-2 transition-all resize-none
-                ${hasError 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                }
-              `}
-            />
-          ) : (
-            <input
-              type={type}
-              value={value || ''}
-              onChange={(e) => onChange(e.target.value)}
-              placeholder={placeholder}
-              className={`
-                w-full px-4 py-3 border rounded-xl focus:ring-2 transition-all
-                ${hasError 
-                  ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                  : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
-                }
-              `}
-            />
-          )}
-        </div>
-        
-        {help && !hasError && (
-          <p className="text-xs text-gray-500 flex items-center gap-1">
-            <Info className="w-3 h-3" />
-            {help}
-          </p>
-        )}
-        
-        {hasError && (
-          <motion.p
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-xs text-red-600 flex items-center gap-1"
-          >
-            <AlertCircle className="w-3 h-3" />
-            {Array.isArray(error) ? error.join(', ') : error}
-          </motion.p>
-        )}
-      </div>
-    );
-  };
-
-  // =========================================
-  // 📝 STEP COMPONENTS
-  // =========================================
-
-  const Step1PersonalData = () => (
-    <motion.div
-      key="step1"
-      initial={{ opacity: 0, x: 50 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -50 }}
-      className="space-y-6"
-    >
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FormField
-          label="Nome Completo"
-          name="dadosPessoais.nome"
-          required
-          icon={User}
-          placeholder="Ex: João Silva Santos"
-          value={formData.dadosPessoais.nome}
-          onChange={(value) => updateField('dadosPessoais.nome', value)}
-          help="Nome completo como aparece no documento de identificação"
-        />
-        
-        <FormField
-          label="Email"
-          name="dadosPessoais.email"
-          type="email"
-          required
-          icon={Mail}
-          placeholder="joao@exemplo.com"
-          value={formData.dadosPessoais.email}
-          onChange={(value) => updateField('dadosPessoais.email', value)}
-        />
-        
-        <FormField
-          label="Telefone"
-          name="dadosPessoais.telefone"
-          type="tel"
-          required
-          icon={Phone}
-          placeholder="+351 912 345 678"
-          value={formData.dadosPessoais.telefone}
-          onChange={(value) => updateField('dadosPessoais.telefone', value)}
-          help="Formato: +351 XXX XXX XXX"
-        />
-        
-        <FormField
-          label="Data de Nascimento"
-          name="dadosPessoais.dataNascimento"
-          type="date"
-          icon={Calendar}
-          value={formData.dadosPessoais.dataNascimento}
-          onChange={(value) => updateField('dadosPessoais.dataNascimento', value)}
-        />
-        
-        <FormField
-          label="NIF"
-          name="dadosPessoais.nif"
-          icon={FileText}
-          placeholder="123 456 789"
-          value={formData.dadosPessoais.nif}
-          onChange={(value) => updateField('dadosPessoais.nif', value)}
-          help="Número de Identificação Fiscal"
-        />
-        
-        <FormField
-          label="Nacionalidade"
-          name="dadosPessoais.nacionalidade"
-          value={formData.dadosPessoais.nacionalidade}
-          onChange={(value) => updateField('dadosPessoais.nacionalidade', value)}
-          placeholder="Portuguesa"
-        />
-      </div>
-      
-      <FormField
-        label="Morada Completa"
-        name="dadosPessoais.morada"
-        icon={MapPin}
-        placeholder="Rua das Flores, 123, 4º Esq, 1000-100 Lisboa"
-        value={formData.dadosPessoais.morada}
-        onChange={(value) => updateField('dadosPessoais.morada', value)}
-        help="Morada completa com código postal"
-      />
-    </motion.div>
-  );
-
-  const Step2FamilyData = () => (
-    <motion.div
-      key="step2"
-      initial={{ opacity: 0, x: 50 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -50 }}
-      className="space-y-6"
-    >
-      <FormField
-        label="Estado Civil"
-        name="dadosPessoais.estadoCivil"
-        type="select"
-        icon={Heart}
-        value={formData.dadosPessoais.estadoCivil}
-        onChange={(value) => updateField('dadosPessoais.estadoCivil', value)}
-        options={Object.entries(EstadoCivilLabels).map(([key, label]) => ({
-          value: key,
-          label
-        }))}
-        placeholder="Selecione o estado civil"
-      />
-      
-      <AnimatePresence>
-        {needsSpouseData && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="space-y-6 p-6 bg-pink-50 rounded-2xl border border-pink-200"
-          >
-            <div className="flex items-center gap-2 text-pink-700">
-              <Users className="w-5 h-5" />
-              <h4 className="font-medium">Dados do Cônjuge</h4>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <FormField
-                label="Nome do Cônjuge"
-                name="conjuge.nome"
-                required={needsSpouseData}
-                icon={User}
-                placeholder="Maria Silva Santos"
-                value={formData.conjuge.nome}
-                onChange={(value) => updateField('conjuge.nome', value)}
-              />
-              
-              <FormField
-                label="Email do Cônjuge"
-                name="conjuge.email"
-                type="email"
-                icon={Mail}
-                placeholder="maria@exemplo.com"
-                value={formData.conjuge.email}
-                onChange={(value) => updateField('conjuge.email', value)}
-              />
-              
-              <FormField
-                label="Telefone do Cônjuge"
-                name="conjuge.telefone"
-                type="tel"
-                icon={Phone}
-                placeholder="+351 913 456 789"
-                value={formData.conjuge.telefone}
-                onChange={(value) => updateField('conjuge.telefone', value)}
-              />
-              
-              <FormField
-                label="NIF do Cônjuge"
-                name="conjuge.nif"
-                icon={FileText}
-                placeholder="987 654 321"
-                value={formData.conjuge.nif}
-                onChange={(value) => updateField('conjuge.nif', value)}
-              />
-            </div>
-            
-            <FormField
-              label="Regime de Bens"
-              name="comunhaoBens"
-              type="select"
-              required={needsSpouseData}
-              icon={Heart}
-              value={formData.comunhaoBens}
-              onChange={(value) => updateField('comunhaoBens', value)}
-              options={Object.entries(ComunhaoBensLabels).map(([key, label]) => ({
-                value: key,
-                label
-              }))}
-              placeholder="Selecione o regime de bens"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  );
-
-  const Step3BankingData = () => (
-    <motion.div
-      key="step3"
-      initial={{ opacity: 0, x: 50 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -50 }}
-      className="space-y-6"
-    >
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
-        <div className="flex items-center gap-2 text-green-700 mb-4">
-          <Info className="w-5 h-5" />
-          <span className="font-medium">Informação Opcional</span>
-        </div>
-        <p className="text-green-600 text-sm">
-          Os dados bancários são opcionais mas ajudam a agilizar processos futuros.
-          Todas as informações são armazenadas de forma segura.
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <FormField
-          label="Banco"
-          name="dadosBancarios.banco"
-          icon={CreditCard}
-          placeholder="Ex: Millennium BCP"
-          value={formData.dadosBancarios.banco}
-          onChange={(value) => updateField('dadosBancarios.banco', value)}
-        />
-        
-        <FormField
-          label="Titular da Conta"
-          name="dadosBancarios.titular"
-          icon={User}
-          placeholder="Nome do titular"
-          value={formData.dadosBancarios.titular}
-          onChange={(value) => updateField('dadosBancarios.titular', value)}
-        />
-      </div>
-      
-      <FormField
-        label="IBAN"
-        name="dadosBancarios.iban"
-        icon={CreditCard}
-        placeholder="PT50 0000 0000 0000 0000 0000 0"
-        value={formData.dadosBancarios.iban}
-        onChange={(value) => updateField('dadosBancarios.iban', value)}
-        help="Formato: PT50 seguido de 19 dígitos"
-      />
-    </motion.div>
-  );
-
-  const Step4Communications = () => (
-    <motion.div
-      key="step4"
-      initial={{ opacity: 0, x: 50 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -50 }}
-      className="space-y-6"
-    >
-      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-6">
-        <h4 className="font-medium text-purple-900 mb-4">Preferências de Comunicação</h4>
-        <p className="text-purple-700 text-sm mb-4">
-          Configure como e quando prefere ser contactado pelo nosso sistema.
-        </p>
-        
-        <div className="space-y-4">
-          {[
-            { key: 'enviarAniversario', label: 'Emails de aniversário', icon: Gift },
-            { key: 'lembretesVisitas', label: 'Lembretes de visitas', icon: Calendar },
-            { key: 'lembretesPagamentos', label: 'Lembretes de pagamentos', icon: CreditCard },
-            { key: 'eventos', label: 'Notificações de eventos', icon: Star },
-            { key: 'marketing', label: 'Comunicações de marketing', icon: Target },
-            { key: 'sms', label: 'Mensagens SMS', icon: Phone }
-          ].map((pref) => (
-            <label key={pref.key} className="flex items-center gap-3 p-3 rounded-xl hover:bg-purple-100 transition-colors cursor-pointer">
-              <input
-                type="checkbox"
-                checked={formData.comunicacoes[pref.key] || false}
-                onChange={(e) => updateField(`comunicacoes.${pref.key}`, e.target.checked)}
-                className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
-              />
-              <pref.icon className="w-5 h-5 text-purple-600" />
-              <span className="font-medium text-gray-900">{pref.label}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  const Step5Finalization = () => (
-    <motion.div
-      key="step5"
-      initial={{ opacity: 0, x: 50 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -50 }}
-      className="space-y-6"
-    >
-      <div className="space-y-4">
-        <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
-          <Users className="w-4 h-4" />
-          <span>Roles do Cliente</span>
-          <span className="text-red-500">*</span>
-        </label>
-        
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {Object.entries(ClientRoleLabels).map(([key, label]) => {
-            const isSelected = formData.roles?.includes(key);
-            const colorClass = ClientRoleColors[key];
-            
-            return (
-              <motion.label
-                key={key}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className={`
-                  flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all
-                  ${isSelected 
-                    ? `${colorClass} border-current` 
-                    : 'bg-white border-gray-200 hover:border-gray-300'
-                  }
-                `}
-              >
-                <input
-                  type="checkbox"
-                  checked={isSelected}
-                  onChange={(e) => {
-                    const currentRoles = formData.roles || [];
-                    const newRoles = e.target.checked
-                      ? [...currentRoles, key]
-                      : currentRoles.filter(role => role !== key);
-                    updateField('roles', newRoles);
-                  }}
-                  className="sr-only"
-                />
-                <div className={`w-3 h-3 rounded-full ${isSelected ? 'bg-current' : 'bg-gray-300'}`} />
-                <span className="font-medium">{label}</span>
-              </motion.label>
-            );
-          })}
-        </div>
-        
-        {errors.roles && (
-          <motion.p
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-xs text-red-600 flex items-center gap-1"
-          >
-            <AlertCircle className="w-3 h-3" />
-            {Array.isArray(errors.roles) ? errors.roles.join(', ') : errors.roles}
-          </motion.p>
-        )}
-      </div>
-      
-      <FormField
-        label="Como chegou até nós?"
-        name="origem"
-        type="select"
-        icon={Target}
-        value={formData.origem}
-        onChange={(value) => updateField('origem', value)}
-        options={Object.entries(ClientSourceLabels).map(([key, label]) => ({
-          value: key,
-          label
-        }))}
-        placeholder="Selecione a origem"
-      />
-      
-      <FormField
-        label="Observações"
-        name="notas"
-        type="textarea"
-        icon={FileText}
-        placeholder="Adicione notas ou observações sobre este cliente..."
-        value={formData.notas}
-        onChange={(value) => updateField('notas', value)}
-      />
-    </motion.div>
-  );
-
-  // =========================================
-  // 🎮 NAVIGATION FUNCTIONS
-  // =========================================
-
-  const handleNext = async () => {
-    setIsAnimating(true);
-    const success = await nextStep();
-    setIsAnimating(false);
     
-    if (!success) {
-      // Scroll para o primeiro erro
-      const firstError = document.querySelector('.text-red-600');
-      if (firstError) {
-        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }
-  };
-
-  const handleSubmit = async () => {
-    try {
-      setIsAnimating(true);
-      await submitForm();
-    } catch (error) {
-      console.error('Erro ao submeter:', error);
-    } finally {
-      setIsAnimating(false);
-    }
-  };
-
-  // =========================================
-  // 🎨 UTILITY FUNCTIONS
-  // =========================================
-
-  const getStepActiveClass = (color) => {
-    const colorMap = {
-      blue: 'bg-blue-500 text-white shadow-lg',
-      pink: 'bg-pink-500 text-white shadow-lg',
-      green: 'bg-green-500 text-white shadow-lg',
-      purple: 'bg-purple-500 text-white shadow-lg',
-      yellow: 'bg-yellow-500 text-white shadow-lg'
-    };
-    return colorMap[color] || 'bg-blue-500 text-white shadow-lg';
-  };
-
-  const getStepBgClass = (color) => {
-    const colorMap = {
-      blue: 'bg-blue-500',
-      pink: 'bg-pink-500',
-      green: 'bg-green-500',
-      purple: 'bg-purple-500',
-      yellow: 'bg-yellow-500'
-    };
-    return colorMap[color] || 'bg-blue-500';
-  };
-
-  const getProgressGradient = (color) => {
-    const colorMap = {
-      blue: 'bg-gradient-to-r from-blue-400 to-blue-600',
-      pink: 'bg-gradient-to-r from-pink-400 to-pink-600',
-      green: 'bg-gradient-to-r from-green-400 to-green-600',
-      purple: 'bg-gradient-to-r from-purple-400 to-purple-600',
-      yellow: 'bg-gradient-to-r from-yellow-400 to-yellow-600'
-    };
-    return colorMap[color] || 'bg-gradient-to-r from-blue-400 to-blue-600';
-  };
-
-  const getStepHeaderClass = (color) => {
-    const colorMap = {
-      blue: 'bg-blue-100 text-blue-600',
-      pink: 'bg-pink-100 text-pink-600',
-      green: 'bg-green-100 text-green-600',
-      purple: 'bg-purple-100 text-purple-600',
-      yellow: 'bg-yellow-100 text-yellow-600'
-    };
-    return colorMap[color] || 'bg-blue-100 text-blue-600';
-  };
-
-  const getButtonClass = (color, isDisabled) => {
-    if (isDisabled) {
-      return 'bg-gray-300 text-gray-500 cursor-not-allowed';
-    }
+    // Validation
+    validateStep,
+    validateField,
+    getFieldValue,
     
-    const colorMap = {
-      blue: 'bg-blue-600 text-white hover:bg-blue-700',
-      pink: 'bg-pink-600 text-white hover:bg-pink-700',
-      green: 'bg-green-600 text-white hover:bg-green-700',
-      purple: 'bg-purple-600 text-white hover:bg-purple-700',
-      yellow: 'bg-yellow-600 text-white hover:bg-yellow-700'
-    };
-    return colorMap[color] || 'bg-blue-600 text-white hover:bg-blue-700';
+    // Submit
+    submitForm
   };
-
-  // =========================================
-  // 🎨 RENDER PRINCIPAL
-  // =========================================
-
-  return (
-    <div className={`min-h-screen bg-gray-50 ${className}`}>
-      <ProgressHeader />
-      
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          <div className="p-8">
-            <AnimatePresence mode="wait">
-              {currentStep === 1 && <Step1PersonalData />}
-              {currentStep === 2 && <Step2FamilyData />}
-              {currentStep === 3 && <Step3BankingData />}
-              {currentStep === 4 && <Step4Communications />}
-              {currentStep === 5 && <Step5Finalization />}
-            </AnimatePresence>
-          </div>
-          
-          {/* Navigation Footer */}
-          <div className="bg-gray-50 px-8 py-6 border-t border-gray-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                {!isFirstStep && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={prevStep}
-                    disabled={isAnimating}
-                    className="flex items-center gap-2 px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                    <span>Anterior</span>
-                  </motion.button>
-                )}
-                
-                {isDirty && mode === 'edit' && (
-                  <div className="flex items-center gap-2 text-blue-600 text-sm">
-                    <Save className="w-4 h-4" />
-                    <span>Auto-salvamento ativo</span>
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex items-center gap-4">
-                {onCancel && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={onCancel}
-                    className="px-6 py-3 text-gray-600 hover:text-gray-800 transition-colors"
-                  >
-                    Cancelar
-                  </motion.button>
-                )}
-                
-                {!isLastStep ? (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleNext}
-                    disabled={!canGoNext || isAnimating}
-                    className={`
-                      flex items-center gap-2 px-8 py-3 rounded-xl font-medium transition-all
-                      ${getButtonClass(currentStepConfig.color, !canGoNext || isAnimating)}
-                    `}
-                  >
-                    <span>Continuar</span>
-                    <ChevronRight className="w-5 h-5" />
-                  </motion.button>
-                ) : (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleSubmit}
-                    disabled={isSubmitting || !canGoNext}
-                    className={`
-                      flex items-center gap-2 px-8 py-3 rounded-xl font-medium transition-all
-                      ${isSubmitting || !canGoNext
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        : 'bg-green-600 text-white hover:bg-green-700'
-                      }
-                    `}
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                          className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
-                        />
-                        <span>Salvando...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-5 h-5" />
-                        <span>{mode === 'create' ? 'Criar Cliente' : 'Salvar Alterações'}</span>
-                      </>
-                    )}
-                  </motion.button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 };
 
-export default ClientForm;
+// =========================================
+// 🎯 SPECIALIZED HOOKS
+// =========================================
+
+/**
+ * Hook para campo específico
+ */
+export const useFormField = (fieldPath, formHook) => {
+  const { formData, updateField, errors, touched } = formHook;
+  
+  const value = formHook.getFieldValue(fieldPath);
+  const error = errors[fieldPath];
+  const isTouched = touched[fieldPath];
+  
+  const setValue = useCallback((newValue) => {
+    updateField(fieldPath, newValue);
+  }, [fieldPath, updateField]);
+  
+  return {
+    value,
+    setValue,
+    error,
+    isTouched,
+    hasError: !!error,
+    isValid: !error && isTouched
+  };
+};
+
+/**
+ * Hook para validação de passo
+ */
+export const useStepValidation = (step, formHook) => {
+  const { validateStep, errors } = formHook;
+  
+  const validation = useMemo(() => {
+    return validateStep(step);
+  }, [step, validateStep]);
+  
+  const stepErrors = useMemo(() => {
+    return Object.entries(errors).filter(([key]) => {
+      // Filtrar erros relevantes para este passo
+      switch (step) {
+        case 1:
+          return key.startsWith('dadosPessoais.');
+        case 2:
+          return key.startsWith('conjuge.') || key === 'comunhaoBens';
+        case 3:
+          return key.startsWith('dadosBancarios.');
+        case 4:
+          return key.startsWith('comunicacoes.');
+        case 5:
+          return key === 'roles' || key === 'origem';
+        default:
+          return false;
+      }
+    });
+  }, [step, errors]);
+  
+  return {
+    isValid: validation.isValid,
+    errors: validation.errors,
+    stepErrors,
+    hasStepErrors: stepErrors.length > 0
+  };
+};
+
+/**
+ * Hook para auto-complete de moradas
+ */
+export const useAddressAutocomplete = () => {
+  const [suggestions, setSuggestions] = useState([]);
+  const [loading, setLoading] = useState(false);
+  
+  const searchAddress = useCallback(async (query) => {
+    if (!query || query.length < 3) {
+      setSuggestions([]);
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Aqui integraria com serviço de geocoding (Google Maps, etc.)
+      // Por agora, mock de sugestões
+      const mockSuggestions = [
+        `${query} - Rua Principal, Porto`,
+        `${query} - Avenida Central, Lisboa`,
+        `${query} - Praça da República, Coimbra`
+      ];
+      
+      setSuggestions(mockSuggestions);
+      
+    } catch (error) {
+      console.error('Erro na pesquisa de moradas:', error);
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  const clearSuggestions = useCallback(() => {
+    setSuggestions([]);
+  }, []);
+  
+  return {
+    suggestions,
+    loading,
+    searchAddress,
+    clearSuggestions
+  };
+};
+
+/**
+ * Hook para upload de avatar
+ */
+export const useAvatarUpload = (clientId) => {
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
+  
+  const uploadAvatar = useCallback(async (file) => {
+    try {
+      setUploading(true);
+      setProgress(0);
+      setError(null);
+      
+      // Validar arquivo
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Apenas imagens são permitidas');
+      }
+      
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        throw new Error('Imagem muito grande (máx 5MB)');
+      }
+      
+      // Simular upload com progresso
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 100);
+      
+      // Aqui faria o upload real para Firebase Storage
+      // const result = await documentsService.uploadDocument(userId, clientId, file, 'avatar');
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      clearInterval(progressInterval);
+      setProgress(100);
+      
+      // Mock URL
+      const avatarURL = URL.createObjectURL(file);
+      
+      return avatarURL;
+      
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    } finally {
+      setUploading(false);
+    }
+  }, [clientId]);
+  
+  return {
+    uploadAvatar,
+    uploading,
+    progress,
+    error
+  };
+};
+
+// =========================================
+// 🛠️ UTILITY FUNCTIONS (mantidas todas)
+// =========================================
+
+/**
+ * Gerar dados de teste para formulário
+ */
+export const generateMockClientData = () => {
+  return {
+    dadosPessoais: {
+      nome: 'João Silva Santos',
+      email: 'joao.silva@email.com',
+      telefone: '+351 912 345 678',
+      morada: 'Rua das Flores, 123, 4º Esq, 1000-100 Lisboa',
+      dataNascimento: '1985-03-15',
+      naturalidade: 'Lisboa',
+      nacionalidade: 'Portuguesa',
+      residencia: 'Lisboa',
+      nif: '123456789',
+      contribuinte: '123456789',
+      numCartaoCidadao: '12345678 9 ZZ4',
+      estadoCivil: EstadoCivil.CASADO
+    },
+    conjuge: {
+      nome: 'Maria Santos Silva',
+      email: 'maria.santos@email.com',
+      telefone: '+351 913 456 789',
+      nif: '987654321',
+      contribuinte: '987654321',
+      numCartaoCidadao: '87654321 1 XX8',
+      dataNascimento: '1987-07-22',
+      naturalidade: 'Porto',
+      nacionalidade: 'Portuguesa',
+      profissao: 'Enfermeira'
+    },
+    comunhaoBens: 'comunhao_adquiridos',
+    dadosBancarios: {
+      banco: 'Millennium BCP',
+      iban: 'PT50 0033 0000 1234 5678 9012 3',
+      swift: 'BCOMPTPL',
+      titular: 'João Silva Santos',
+      morada: 'Av. da Liberdade, 195, Lisboa'
+    },
+    comunicacoes: {
+      enviarAniversario: true,
+      lembretesVisitas: true,
+      lembretesPagamentos: true,
+      eventos: true,
+      marketing: false,
+      sms: true,
+      horaPreferida: '14:00',
+      diasPreferidos: ['segunda', 'terca', 'quarta', 'quinta', 'sexta']
+    },
+    roles: [ClientRole.COMPRADOR, ClientRole.INVESTIDOR],
+    notas: 'Cliente interessado em imóveis na zona de Lisboa. Orçamento até 300k.',
+    origem: 'referencia'
+  };
+};
+
+/**
+ * Validar NIF português
+ */
+export const validateNIF = (nif) => {
+  if (!nif || nif.length !== 9) return false;
+  
+  const digits = nif.split('').map(Number);
+  const checkDigit = digits[8];
+  
+  let sum = 0;
+  for (let i = 0; i < 8; i++) {
+    sum += digits[i] * (9 - i);
+  }
+  
+  const remainder = sum % 11;
+  const expectedDigit = remainder < 2 ? 0 : 11 - remainder;
+  
+  return checkDigit === expectedDigit;
+};
+
+/**
+ * Formatar telefone português
+ */
+export const formatPhone = (phone) => {
+  const clean = phone.replace(/\D/g, '');
+  
+  if (clean.startsWith('351')) {
+    const number = clean.substring(3);
+    return `+351 ${number.substring(0, 3)} ${number.substring(3, 6)} ${number.substring(6)}`;
+  }
+  
+  if (clean.length === 9) {
+    return `+351 ${clean.substring(0, 3)} ${clean.substring(3, 6)} ${clean.substring(6)}`;
+  }
+  
+  return phone;
+};
+
+/**
+ * Formatar IBAN português
+ */
+export const formatIBAN = (iban) => {
+  const clean = iban.replace(/\s/g, '').toUpperCase();
+  
+  if (clean.startsWith('PT50')) {
+    return clean.replace(/(.{4})/g, '$1 ').trim();
+  }
+  
+  return iban;
+};
+
+export default useClientForm;

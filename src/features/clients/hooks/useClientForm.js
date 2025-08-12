@@ -4,7 +4,7 @@
 // Hook para gestão de formulários de clientes
 // Multi-step form com validação e estado
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useClients } from './useClients';
 import { 
@@ -17,6 +17,7 @@ import {
 
 /**
  * Hook para gestão de formulários de clientes
+ * CORRIGIDO: Sem re-renders desnecessários mantendo todas as funcionalidades
  * @param {Object} options - Opções de configuração
  * @returns {Object} Estado e ações do formulário
  */
@@ -106,6 +107,22 @@ export const useClientForm = (options = {}) => {
   const [touched, setTouched] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+
+  // =========================================
+  // 🔧 REFS PARA DEPENDÊNCIAS ESTÁVEIS
+  // =========================================
+  // CORREÇÃO: Usar refs para evitar re-renders
+  const errorsRef = useRef(errors);
+  const touchedRef = useRef(touched);
+
+  // Manter refs atualizadas
+  useEffect(() => {
+    errorsRef.current = errors;
+  }, [errors]);
+
+  useEffect(() => {
+    touchedRef.current = touched;
+  }, [touched]);
 
   // =========================================
   // 🔍 VALIDATION FUNCTIONS
@@ -240,11 +257,12 @@ export const useClientForm = (options = {}) => {
   }, [formData]);
 
   // =========================================
-  // 🔄 FORM ACTIONS
+  // 🔄 FORM ACTIONS (CORRIGIDAS)
   // =========================================
 
   /**
    * Atualizar campo do formulário
+   * CORREÇÃO: Sem dependências instáveis
    */
   const updateField = useCallback((fieldPath, value) => {
     setFormData(prev => {
@@ -266,7 +284,7 @@ export const useClientForm = (options = {}) => {
       return newData;
     });
     
-    // Marcar como touched
+    // Marcar como touched (usando callback para evitar dependência)
     setTouched(prev => ({
       ...prev,
       [fieldPath]: true
@@ -275,15 +293,16 @@ export const useClientForm = (options = {}) => {
     // Marcar como dirty
     setIsDirty(true);
     
-    // Limpar erro deste campo
-    if (errors[fieldPath]) {
-      setErrors(prev => {
+    // Limpar erro deste campo (usando callback)
+    setErrors(prev => {
+      if (prev[fieldPath]) {
         const newErrors = { ...prev };
         delete newErrors[fieldPath];
         return newErrors;
-      });
-    }
-  }, [errors]);
+      }
+      return prev;
+    });
+  }, []); // 🔧 SEM DEPENDÊNCIAS!
 
   /**
    * Atualizar múltiplos campos
