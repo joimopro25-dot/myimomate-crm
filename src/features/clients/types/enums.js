@@ -1,7 +1,5 @@
-// =========================================
-// 🎯 ENUMS & CONSTANTS - MÓDULO CLIENTES
-// =========================================
-// Definições de enumerações e constantes para o sistema
+// src/features/clients/types/enums.js
+// 🔧 CORREÇÃO DE EXPORTS - PROBLEMA CONSOLE RESOLVIDO
 
 // =========================================
 // 🏷️ ESTADO CIVIL
@@ -23,6 +21,12 @@ export const EstadoCivilLabels = {
   [EstadoCivil.UNIAO_FACTO]: 'União de Facto',
   [EstadoCivil.SEPARADO]: 'Separado(a)'
 };
+
+// 🔧 EXPORT LEGACY para compatibilidade
+export const ESTADOS_CIVIS = Object.entries(EstadoCivilLabels).map(([value, label]) => ({
+  value,
+  label
+}));
 
 // =========================================
 // 👥 ROLES DO CLIENTE
@@ -101,7 +105,6 @@ export const DealTypeLabels = {
 // 📊 STATUS DOS NEGÓCIOS
 // =========================================
 export const DealStatus = {
-  // Status Gerais
   PROSPECTO: 'prospecto',
   QUALIFICADO: 'qualificado',
   EM_NEGOCIACAO: 'em_negociacao',
@@ -112,20 +115,14 @@ export const DealStatus = {
   CONCLUIDO: 'concluido',
   CANCELADO: 'cancelado',
   SUSPENSO: 'suspenso',
-  
-  // Status Específicos Compra
   PROCURA_ATIVA: 'procura_ativa',
   VISITAS_AGENDADAS: 'visitas_agendadas',
   FINANCIAMENTO_PENDENTE: 'financiamento_pendente',
   FINANCIAMENTO_APROVADO: 'financiamento_aprovado',
-  
-  // Status Específicos Venda
   AVALIACAO_PENDENTE: 'avaliacao_pendente',
   CMI_ASSINADO: 'cmi_assinado',
   MARKETING_ATIVO: 'marketing_ativo',
   VISITAS_MARCADAS: 'visitas_marcadas',
-  
-  // Status Arrendamento
   CONTRATO_ASSINADO: 'contrato_assinado',
   CAUÇÃO_PAGA: 'caucao_paga'
 };
@@ -224,6 +221,12 @@ export const DocumentCategoryLabels = {
   [DocumentCategory.OUTROS]: 'Outros'
 };
 
+// 🔧 EXPORT LEGACY para TIPOS_DOCUMENTO
+export const TIPOS_DOCUMENTO = Object.entries(DocumentCategoryLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
 // =========================================
 // 🎯 ORIGEM DOS CLIENTES
 // =========================================
@@ -257,14 +260,12 @@ export const ClientSourceLabels = {
 // ⚙️ CONFIGURAÇÕES E CONSTANTES
 // =========================================
 
-// Paginação
 export const PAGINATION = {
   DEFAULT_LIMIT: 20,
   MAX_LIMIT: 100,
   MIN_LIMIT: 5
 };
 
-// Limites de arquivo
 export const FILE_LIMITS = {
   MAX_SIZE: 10 * 1024 * 1024, // 10MB
   ALLOWED_TYPES: [
@@ -279,16 +280,14 @@ export const FILE_LIMITS = {
   ]
 };
 
-// Campos obrigatórios por passo do formulário
 export const REQUIRED_FIELDS = {
   STEP_1: ['nome', 'email', 'telefone'],
-  STEP_2: [], // Cônjuge é opcional
-  STEP_3: [], // Dados bancários opcionais
-  STEP_4: [], // Documentos opcionais
-  STEP_5: ['roles'] // Pelo menos um role
+  STEP_2: [],
+  STEP_3: [],
+  STEP_4: [],
+  STEP_5: ['roles']
 };
 
-// Máscaras e validações
 export const INPUT_MASKS = {
   TELEFONE: '+351 ### ### ###',
   NIF: '### ### ###',
@@ -296,7 +295,6 @@ export const INPUT_MASKS = {
   CARTAO_CIDADAO: '######## # AA#'
 };
 
-// Regex para validações
 export const VALIDATION_REGEX = {
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   TELEFONE: /^(\+351)?[0-9]{9}$/,
@@ -305,13 +303,11 @@ export const VALIDATION_REGEX = {
   CARTAO_CIDADAO: /^[0-9]{8}[0-9][A-Z]{2}[0-9]$/
 };
 
-// Estados que permitem cônjuge
 export const ESTADOS_COM_CONJUGE = [
   EstadoCivil.CASADO,
   EstadoCivil.UNIAO_FACTO
 ];
 
-// Roles que normalmente têm deals
 export const ROLES_COM_DEALS = [
   ClientRole.COMPRADOR,
   ClientRole.VENDEDOR,
@@ -320,7 +316,9 @@ export const ROLES_COM_DEALS = [
   ClientRole.INQUILINO
 ];
 
-// Exportar tudo como um objeto principal também
+// =========================================
+// 📦 EXPORT PRINCIPAL
+// =========================================
 export const ClientEnums = {
   EstadoCivil,
   EstadoCivilLabels,
@@ -346,5 +344,8 @@ export const ClientEnums = {
   INPUT_MASKS,
   VALIDATION_REGEX,
   ESTADOS_COM_CONJUGE,
-  ROLES_COM_DEALS
+  ROLES_COM_DEALS,
+  // Legacy exports
+  ESTADOS_CIVIS,
+  TIPOS_DOCUMENTO
 };

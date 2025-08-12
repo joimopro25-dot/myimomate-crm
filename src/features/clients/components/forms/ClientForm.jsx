@@ -1,183 +1,351 @@
 // src/features/clients/components/forms/ClientForm.jsx
-// 🚨 VERSÃO CORRIGIDA - PROBLEMA DE PERDA DE FOCO RESOLVIDO
+// 🎨 VERSÃO BONITA + FOCO CORRIGIDO - O MELHOR DOS DOIS MUNDOS
 
-import React, { useMemo, useCallback } from 'react';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Mail, Phone, Calendar, Building, FileText } from 'lucide-react';
-import { clientSchema } from '../../types';
-import { ESTADOS_CIVIS, TIPOS_DOCUMENTO } from '../../types/enums';
+import { 
+  User, Mail, Phone, Calendar, Building, FileText, MapPin,
+  CreditCard, Globe, Heart, Users, CheckCircle
+} from 'lucide-react';
+import { EstadoCivil, EstadoCivilLabels } from '../../types/enums';
 
-// 🔥 SOLUÇÃO 1: InputField definido FORA do componente principal
+// 🎨 COMPONENTE INPUTFIELD REDESENHADO - MUITO MAIS BONITO
 const InputField = React.memo(({ 
   name, 
   label, 
   type = "text", 
   placeholder, 
   icon: Icon, 
-  control, 
+  value,
+  onChange,
   error,
   required = false,
+  className = "",
   ...props 
 }) => (
-  <div className="space-y-2">
-    <label htmlFor={name} className="text-sm font-medium text-gray-700 flex items-center gap-2">
-      {Icon && <Icon size={16} />}
-      {label}
-      {required && <span className="text-red-500">*</span>}
-    </label>
-    
-    <Controller
-      name={name}
-      control={control}
-      render={({ field }) => (
-        <input
-          {...field}
-          {...props}
-          id={name}
-          type={type}
-          placeholder={placeholder}
-          className={`
-            w-full px-4 py-3 border rounded-lg transition-all duration-200
-            focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-            ${error ? 'border-red-300 bg-red-50' : 'border-gray-300'}
-            hover:border-gray-400
-          `}
-        />
+  <div className="group relative">
+    <div className="relative">
+      {/* Icon */}
+      {Icon && (
+        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10">
+          <Icon className={`w-5 h-5 transition-colors duration-200 ${
+            error 
+              ? 'text-red-400' 
+              : value 
+                ? 'text-blue-500' 
+                : 'text-gray-400 group-hover:text-gray-600'
+          }`} />
+        </div>
       )}
-    />
+      
+      {/* Input */}
+      <input
+        id={name}
+        name={name}
+        type={type}
+        value={value || ''}
+        onChange={onChange}
+        placeholder=" "
+        className={`
+          peer w-full h-14 px-4 ${Icon ? 'pl-12' : 'pl-4'} pr-4
+          bg-white border-2 rounded-xl
+          text-gray-900 placeholder-transparent
+          transition-all duration-200 ease-in-out
+          focus:outline-none focus:ring-0
+          ${error 
+            ? 'border-red-300 focus:border-red-500 bg-red-50/30' 
+            : 'border-gray-200 focus:border-blue-500 hover:border-gray-300'
+          }
+          disabled:bg-gray-50 disabled:text-gray-500
+          ${className}
+        `}
+        {...props}
+      />
+      
+      {/* Floating Label */}
+      <label
+        htmlFor={name}
+        className={`
+          absolute left-4 ${Icon ? 'left-12' : 'left-4'} top-1/2 transform -translate-y-1/2
+          text-gray-500 text-sm font-medium
+          transition-all duration-200 ease-in-out pointer-events-none
+          peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-base peer-placeholder-shown:text-gray-400
+          peer-focus:top-2 peer-focus:text-xs peer-focus:text-blue-600 peer-focus:font-semibold
+          ${value ? 'top-2 text-xs font-semibold text-blue-600' : ''}
+          ${error ? 'text-red-500' : ''}
+        `}
+      >
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+
+      {/* Success Indicator */}
+      {value && !error && (
+        <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+          <CheckCircle className="w-5 h-5 text-green-500" />
+        </div>
+      )}
+    </div>
     
-    {error && (
-      <p className="text-sm text-red-600 flex items-center gap-1">
-        {error.message}
-      </p>
+    {/* Error Message */}
+    <AnimatePresence>
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="mt-2"
+        >
+          <p className="text-sm text-red-600 flex items-center gap-2">
+            <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+            {error}
+          </p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    
+    {/* Help Text */}
+    {placeholder && !error && (
+      <p className="mt-1 text-xs text-gray-500">{placeholder}</p>
     )}
   </div>
 ));
 
-// 🔥 SOLUÇÃO 2: SelectField definido FORA do componente principal
+// 🎨 COMPONENTE SELECTFIELD REDESENHADO
 const SelectField = React.memo(({ 
   name, 
   label, 
   options, 
   placeholder, 
   icon: Icon, 
-  control, 
+  value,
+  onChange,
   error,
   required = false 
 }) => (
-  <div className="space-y-2">
-    <label htmlFor={name} className="text-sm font-medium text-gray-700 flex items-center gap-2">
-      {Icon && <Icon size={16} />}
-      {label}
-      {required && <span className="text-red-500">*</span>}
-    </label>
-    
-    <Controller
-      name={name}
-      control={control}
-      render={({ field }) => (
-        <select
-          {...field}
-          id={name}
-          className={`
-            w-full px-4 py-3 border rounded-lg transition-all duration-200
-            focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-            ${error ? 'border-red-300 bg-red-50' : 'border-gray-300'}
-            hover:border-gray-400
-          `}
-        >
-          <option value="">{placeholder}</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+  <div className="group relative">
+    <div className="relative">
+      {/* Icon */}
+      {Icon && (
+        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10">
+          <Icon className={`w-5 h-5 transition-colors duration-200 ${
+            error 
+              ? 'text-red-400' 
+              : value 
+                ? 'text-blue-500' 
+                : 'text-gray-400 group-hover:text-gray-600'
+          }`} />
+        </div>
       )}
-    />
+      
+      {/* Select */}
+      <select
+        id={name}
+        name={name}
+        value={value || ''}
+        onChange={onChange}
+        className={`
+          peer w-full h-14 px-4 ${Icon ? 'pl-12' : 'pl-4'} pr-10
+          bg-white border-2 rounded-xl
+          text-gray-900 appearance-none cursor-pointer
+          transition-all duration-200 ease-in-out
+          focus:outline-none focus:ring-0
+          ${error 
+            ? 'border-red-300 focus:border-red-500 bg-red-50/30' 
+            : 'border-gray-200 focus:border-blue-500 hover:border-gray-300'
+          }
+        `}
+      >
+        <option value="" disabled>{placeholder}</option>
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+      
+      {/* Custom Arrow */}
+      <div className="absolute right-4 top-1/2 transform -translate-y-1/2 pointer-events-none">
+        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+      
+      {/* Floating Label */}
+      <label
+        htmlFor={name}
+        className={`
+          absolute left-4 ${Icon ? 'left-12' : 'left-4'} top-2
+          text-xs font-semibold
+          transition-all duration-200 ease-in-out pointer-events-none
+          ${error ? 'text-red-500' : value ? 'text-blue-600' : 'text-gray-500'}
+        `}
+      >
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+
+      {/* Success Indicator */}
+      {value && !error && (
+        <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
+          <CheckCircle className="w-5 h-5 text-green-500" />
+        </div>
+      )}
+    </div>
     
-    {error && (
-      <p className="text-sm text-red-600">{error.message}</p>
+    {/* Error Message */}
+    <AnimatePresence>
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="mt-2"
+        >
+          <p className="text-sm text-red-600 flex items-center gap-2">
+            <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+            {error}
+          </p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  </div>
+));
+
+// 🎨 COMPONENTE TEXTAREA REDESENHADO
+const TextAreaField = React.memo(({ 
+  name, 
+  label, 
+  placeholder, 
+  icon: Icon, 
+  value,
+  onChange,
+  error,
+  rows = 4,
+  ...props 
+}) => (
+  <div className="group relative">
+    <div className="relative">
+      {/* Icon */}
+      {Icon && (
+        <div className="absolute left-4 top-4 z-10">
+          <Icon className={`w-5 h-5 transition-colors duration-200 ${
+            error 
+              ? 'text-red-400' 
+              : value 
+                ? 'text-blue-500' 
+                : 'text-gray-400 group-hover:text-gray-600'
+          }`} />
+        </div>
+      )}
+      
+      {/* Textarea */}
+      <textarea
+        id={name}
+        name={name}
+        value={value || ''}
+        onChange={onChange}
+        rows={rows}
+        placeholder=" "
+        className={`
+          peer w-full px-4 ${Icon ? 'pl-12' : 'pl-4'} pt-8 pb-4
+          bg-white border-2 rounded-xl
+          text-gray-900 placeholder-transparent resize-none
+          transition-all duration-200 ease-in-out
+          focus:outline-none focus:ring-0
+          ${error 
+            ? 'border-red-300 focus:border-red-500 bg-red-50/30' 
+            : 'border-gray-200 focus:border-blue-500 hover:border-gray-300'
+          }
+        `}
+        {...props}
+      />
+      
+      {/* Floating Label */}
+      <label
+        htmlFor={name}
+        className={`
+          absolute left-4 ${Icon ? 'left-12' : 'left-4'} top-2
+          text-xs font-semibold
+          transition-all duration-200 ease-in-out pointer-events-none
+          ${error ? 'text-red-500' : value ? 'text-blue-600' : 'text-gray-500'}
+        `}
+      >
+        {label}
+      </label>
+    </div>
+    
+    {/* Error Message */}
+    <AnimatePresence>
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="mt-2"
+        >
+          <p className="text-sm text-red-600 flex items-center gap-2">
+            <span className="w-1 h-1 bg-red-500 rounded-full"></span>
+            {error}
+          </p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+    
+    {/* Help Text */}
+    {placeholder && !error && (
+      <p className="mt-1 text-xs text-gray-500">{placeholder}</p>
     )}
   </div>
 ));
 
-// 🔥 SOLUÇÃO 3: Componente principal com hooks otimizados
+// 🎨 COMPONENTE PRINCIPAL BONITO
 const ClientForm = ({ 
   client = null, 
   onSubmit, 
   onCancel, 
   isLoading = false 
 }) => {
-  // ✅ Hook form inicializado uma única vez
-  const form = useForm({
-    resolver: zodResolver(clientSchema),
-    defaultValues: useMemo(() => ({
-      // Dados Pessoais
-      nomeCompleto: client?.nomeCompleto || '',
-      email: client?.email || '',
-      telefone: client?.telefone || '',
-      dataNascimento: client?.dataNascimento || '',
-      naturalidade: client?.naturalidade || '',
-      nacionalidade: client?.nacionalidade || 'Portugal',
-      residencia: client?.residencia || '',
-      nif: client?.nif || '',
-      numeroCartaoCidadao: client?.numeroCartaoCidadao || '',
-      estadoCivil: client?.estadoCivil || '',
-      
-      // Cônjuge (se casado)
-      nomeConjuge: client?.nomeConjuge || '',
-      emailConjuge: client?.emailConjuge || '',
-      telefoneConjuge: client?.telefoneConjuge || '',
-      dataNascimentoConjuge: client?.dataNascimentoConjuge || '',
-      naturalidadeConjuge: client?.naturalidadeConjuge || '',
-      nacionalidadeConjuge: client?.nacionalidadeConjuge || 'Portugal',
-      residenciaConjuge: client?.residenciaConjuge || '',
-      nifConjuge: client?.nifConjuge || '',
-      numeroCartaoCidadaoConjuge: client?.numeroCartaoCidadaoConjuge || '',
-      comunhaoBens: client?.comunhaoBens || '',
-      
-      // Dados Bancários
-      banco: client?.banco || '',
-      iban: client?.iban || '',
-      swift: client?.swift || '',
-      
-      // Configurações
-      configuracoes: {
-        enviarEmailsAniversario: client?.configuracoes?.enviarEmailsAniversario || false,
-        lembretesVisitas: client?.configuracoes?.lembretesVisitas || false,
-        lembretesPagamentos: client?.configuracoes?.lembretesPagamentos || false,
-        eventosGerais: client?.configuracoes?.eventosGerais || false,
-      },
-      
-      // Roles
-      roles: client?.roles || [],
-      
-      // Observações
-      observacoes: client?.observacoes || '',
-    }), [client]), // ✅ Dependência apenas do client, não muda constantemente
-  });
-
-  const { control, handleSubmit, watch, formState: { errors, isSubmitting } } = form;
   
-  // ✅ Watch do estado civil com useCallback para evitar re-renders
-  const estadoCivil = watch('estadoCivil');
-  const isCasado = estadoCivil === 'casado';
+  // ✅ Estado inicial memoizado
+  const initialFormData = useMemo(() => ({
+    nomeCompleto: client?.nomeCompleto || '',
+    email: client?.email || '',
+    telefone: client?.telefone || '',
+    dataNascimento: client?.dataNascimento || '',
+    naturalidade: client?.naturalidade || '',
+    nacionalidade: client?.nacionalidade || 'Portugal',
+    residencia: client?.residencia || '',
+    nif: client?.nif || '',
+    numeroCartaoCidadao: client?.numeroCartaoCidadao || '',
+    estadoCivil: client?.estadoCivil || '',
+    nomeConjuge: client?.nomeConjuge || '',
+    emailConjuge: client?.emailConjuge || '',
+    telefoneConjuge: client?.telefoneConjuge || '',
+    dataNascimentoConjuge: client?.dataNascimentoConjuge || '',
+    naturalidadeConjuge: client?.naturalidadeConjuge || '',
+    nacionalidadeConjuge: client?.nacionalidadeConjuge || 'Portugal',
+    residenciaConjuge: client?.residenciaConjuge || '',
+    nifConjuge: client?.nifConjuge || '',
+    numeroCartaoCidadaoConjuge: client?.numeroCartaoCidadaoConjuge || '',
+    comunhaoBens: client?.comunhaoBens || '',
+    banco: client?.banco || '',
+    iban: client?.iban || '',
+    swift: client?.swift || '',
+    observacoes: client?.observacoes || '',
+  }), [client]);
 
-  // ✅ Handler com useCallback para manter referência estável
-  const onSubmitForm = useCallback((data) => {
-    onSubmit(data);
-  }, [onSubmit]);
+  // ✅ Estado do formulário
+  const [formData, setFormData] = useState(initialFormData);
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ✅ Opções memoizadas para evitar re-criação
+  // ✅ Opções memoizadas
   const estadosCivisOptions = useMemo(() => 
-    ESTADOS_CIVIS.map(estado => ({
-      value: estado.value,
-      label: estado.label
-    })), []
-  );
+    Object.entries(EstadoCivilLabels).map(([value, label]) => ({
+      value,
+      label
+    })), []);
 
   const comunhaoBensOptions = useMemo(() => [
     { value: 'geral', label: 'Comunhão Geral' },
@@ -185,287 +353,384 @@ const ClientForm = ({
     { value: 'adquiridos', label: 'Comunhão de Adquiridos' }
   ], []);
 
+  // ✅ Verificar se está casado
+  const isCasado = formData.estadoCivil === EstadoCivil.CASADO;
+
+  // ✅ Handler otimizado
+  const handleFieldChange = useCallback((e) => {
+    const { name, value } = e.target;
+    
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: null
+      }));
+    }
+  }, [errors]);
+
+  // ✅ Validação
+  const validateForm = useCallback(() => {
+    const newErrors = {};
+
+    if (!formData.nomeCompleto.trim()) {
+      newErrors.nomeCompleto = 'Nome é obrigatório';
+    }
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email é obrigatório';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Email inválido';
+    }
+    if (!formData.telefone.trim()) {
+      newErrors.telefone = 'Telefone é obrigatório';
+    }
+    if (isCasado && !formData.nomeConjuge.trim()) {
+      newErrors.nomeConjuge = 'Nome do cônjuge é obrigatório';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  }, [formData, isCasado]);
+
+  // ✅ Submit handler
+  const handleSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    
+    try {
+      await onSubmit(formData);
+    } catch (error) {
+      console.error('Erro ao submeter formulário:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [formData, validateForm, onSubmit]);
+
   return (
-    <div className="bg-white">
-      <form onSubmit={handleSubmit(onSubmitForm)} className="space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+      <div className="max-w-4xl mx-auto p-6">
         
-        {/* Dados Pessoais */}
-        <motion.section
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-8"
+        >
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl mb-4">
+            <User className="w-8 h-8 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            {client ? 'Editar Cliente' : 'Novo Cliente'}
+          </h1>
+          <p className="text-gray-600">
+            Preencha os dados do cliente com cuidado
+          </p>
+        </motion.div>
+
+        {/* Form */}
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="space-y-6"
+          className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden"
         >
-          <div className="flex items-center gap-3 pb-4 border-b">
-            <div className="p-2 bg-blue-100 rounded-lg">
-              <User className="w-5 h-5 text-blue-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Dados Pessoais
-            </h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <InputField
-              name="nomeCompleto"
-              label="Nome Completo"
-              placeholder="Digite o nome completo"
-              icon={User}
-              control={control}
-              error={errors.nomeCompleto}
-              required
-            />
+          <form onSubmit={handleSubmit} className="p-8 space-y-12">
             
-            <InputField
-              name="email"
-              label="Email"
-              type="email"
-              placeholder="email@exemplo.com"
-              icon={Mail}
-              control={control}
-              error={errors.email}
-              required
-            />
-            
-            <InputField
-              name="telefone"
-              label="Telefone"
-              placeholder="+351 912 345 678"
-              icon={Phone}
-              control={control}
-              error={errors.telefone}
-              required
-            />
-            
-            <InputField
-              name="dataNascimento"
-              label="Data de Nascimento"
-              type="date"
-              icon={Calendar}
-              control={control}
-              error={errors.dataNascimento}
-            />
-            
-            <InputField
-              name="naturalidade"
-              label="Naturalidade"
-              placeholder="Local de nascimento"
-              control={control}
-              error={errors.naturalidade}
-            />
-            
-            <InputField
-              name="nacionalidade"
-              label="Nacionalidade"
-              placeholder="Portugal"
-              control={control}
-              error={errors.nacionalidade}
-            />
-            
-            <InputField
-              name="nif"
-              label="NIF"
-              placeholder="123 456 789"
-              control={control}
-              error={errors.nif}
-            />
-            
-            <InputField
-              name="numeroCartaoCidadao"
-              label="Nº Cartão de Cidadão"
-              placeholder="12345678 9 ZZ4"
-              control={control}
-              error={errors.numeroCartaoCidadao}
-            />
-            
-            <SelectField
-              name="estadoCivil"
-              label="Estado Civil"
-              options={estadosCivisOptions}
-              placeholder="Selecione o estado civil"
-              control={control}
-              error={errors.estadoCivil}
-            />
-          </div>
-        </motion.section>
-
-        {/* Dados do Cônjuge (se casado) */}
-        <AnimatePresence>
-          {isCasado && (
+            {/* Dados Pessoais */}
             <motion.section
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="space-y-8"
             >
-              <div className="flex items-center gap-3 pb-4 border-b">
-                <div className="p-2 bg-pink-100 rounded-lg">
-                  <User className="w-5 h-5 text-pink-600" />
+              <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
+                <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-xl">
+                  <User className="w-6 h-6 text-blue-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Dados do Cônjuge
-                </h3>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Dados Pessoais</h2>
+                  <p className="text-sm text-gray-500">Informações básicas do cliente</p>
+                </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <InputField
-                  name="nomeConjuge"
-                  label="Nome do Cônjuge"
-                  placeholder="Digite o nome do cônjuge"
+                  name="nomeCompleto"
+                  label="Nome Completo"
                   icon={User}
-                  control={control}
-                  error={errors.nomeConjuge}
+                  value={formData.nomeCompleto}
+                  onChange={handleFieldChange}
+                  error={errors.nomeCompleto}
+                  required
                 />
                 
                 <InputField
-                  name="emailConjuge"
-                  label="Email do Cônjuge"
+                  name="email"
+                  label="Email"
                   type="email"
-                  placeholder="email@exemplo.com"
                   icon={Mail}
-                  control={control}
-                  error={errors.emailConjuge}
+                  value={formData.email}
+                  onChange={handleFieldChange}
+                  error={errors.email}
+                  required
                 />
                 
-                <SelectField
-                  name="comunhaoBens"
-                  label="Comunhão de Bens"
-                  options={comunhaoBensOptions}
-                  placeholder="Selecione o regime"
-                  control={control}
-                  error={errors.comunhaoBens}
+                <InputField
+                  name="telefone"
+                  label="Telefone"
+                  icon={Phone}
+                  value={formData.telefone}
+                  onChange={handleFieldChange}
+                  error={errors.telefone}
+                  placeholder="Formato: +351 XXX XXX XXX"
+                  required
+                />
+                
+                <InputField
+                  name="dataNascimento"
+                  label="Data de Nascimento"
+                  type="date"
+                  icon={Calendar}
+                  value={formData.dataNascimento}
+                  onChange={handleFieldChange}
+                  error={errors.dataNascimento}
+                />
+                
+                <InputField
+                  name="naturalidade"
+                  label="Naturalidade"
+                  icon={MapPin}
+                  value={formData.naturalidade}
+                  onChange={handleFieldChange}
+                  error={errors.naturalidade}
+                  placeholder="Local de nascimento"
+                />
+                
+                <InputField
+                  name="nacionalidade"
+                  label="Nacionalidade"
+                  icon={Globe}
+                  value={formData.nacionalidade}
+                  onChange={handleFieldChange}
+                  error={errors.nacionalidade}
+                />
+                
+                <InputField
+                  name="nif"
+                  label="NIF"
+                  icon={CreditCard}
+                  value={formData.nif}
+                  onChange={handleFieldChange}
+                  error={errors.nif}
+                  placeholder="9 dígitos"
+                />
+                
+                <InputField
+                  name="numeroCartaoCidadao"
+                  label="Nº Cartão de Cidadão"
+                  icon={CreditCard}
+                  value={formData.numeroCartaoCidadao}
+                  onChange={handleFieldChange}
+                  error={errors.numeroCartaoCidadao}
+                  placeholder="Formato: 12345678 9 ZZ4"
+                />
+                
+                <div className="lg:col-span-2">
+                  <SelectField
+                    name="estadoCivil"
+                    label="Estado Civil"
+                    options={estadosCivisOptions}
+                    placeholder="Selecione o estado civil"
+                    icon={Heart}
+                    value={formData.estadoCivil}
+                    onChange={handleFieldChange}
+                    error={errors.estadoCivil}
+                  />
+                </div>
+              </div>
+            </motion.section>
+
+            {/* Dados do Cônjuge */}
+            <AnimatePresence>
+              {isCasado && (
+                <motion.section
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="space-y-8"
+                >
+                  <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
+                    <div className="flex items-center justify-center w-12 h-12 bg-pink-100 rounded-xl">
+                      <Users className="w-6 h-6 text-pink-600" />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-900">Dados do Cônjuge</h2>
+                      <p className="text-sm text-gray-500">Informações do cônjuge</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <InputField
+                      name="nomeConjuge"
+                      label="Nome do Cônjuge"
+                      icon={User}
+                      value={formData.nomeConjuge}
+                      onChange={handleFieldChange}
+                      error={errors.nomeConjuge}
+                      required
+                    />
+                    
+                    <InputField
+                      name="emailConjuge"
+                      label="Email do Cônjuge"
+                      type="email"
+                      icon={Mail}
+                      value={formData.emailConjuge}
+                      onChange={handleFieldChange}
+                      error={errors.emailConjuge}
+                    />
+                    
+                    <div className="lg:col-span-2">
+                      <SelectField
+                        name="comunhaoBens"
+                        label="Comunhão de Bens"
+                        options={comunhaoBensOptions}
+                        placeholder="Selecione o regime"
+                        icon={Heart}
+                        value={formData.comunhaoBens}
+                        onChange={handleFieldChange}
+                        error={errors.comunhaoBens}
+                      />
+                    </div>
+                  </div>
+                </motion.section>
+              )}
+            </AnimatePresence>
+
+            {/* Dados Bancários */}
+            <motion.section
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.1 }}
+              className="space-y-8"
+            >
+              <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
+                <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-xl">
+                  <Building className="w-6 h-6 text-green-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Dados Bancários</h2>
+                  <p className="text-sm text-gray-500">Informações financeiras (opcional)</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <InputField
+                  name="banco"
+                  label="Banco"
+                  icon={Building}
+                  value={formData.banco}
+                  onChange={handleFieldChange}
+                  error={errors.banco}
+                  placeholder="Nome do banco"
+                />
+                
+                <InputField
+                  name="iban"
+                  label="IBAN"
+                  icon={CreditCard}
+                  value={formData.iban}
+                  onChange={handleFieldChange}
+                  error={errors.iban}
+                  placeholder="PT50 XXXX XXXX XXXX XXXX XXXX X"
+                />
+                
+                <InputField
+                  name="swift"
+                  label="Código SWIFT"
+                  icon={Globe}
+                  value={formData.swift}
+                  onChange={handleFieldChange}
+                  error={errors.swift}
+                  placeholder="Código internacional"
                 />
               </div>
             </motion.section>
-          )}
-        </AnimatePresence>
 
-        {/* Dados Bancários */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="space-y-6"
-        >
-          <div className="flex items-center gap-3 pb-4 border-b">
-            <div className="p-2 bg-green-100 rounded-lg">
-              <Building className="w-5 h-5 text-green-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Dados Bancários
-            </h3>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <InputField
-              name="banco"
-              label="Banco"
-              placeholder="Nome do banco"
-              icon={Building}
-              control={control}
-              error={errors.banco}
-            />
-            
-            <InputField
-              name="iban"
-              label="IBAN"
-              placeholder="PT50 0000 0000 0000 0000 0000 0"
-              control={control}
-              error={errors.iban}
-            />
-            
-            <InputField
-              name="swift"
-              label="Código SWIFT"
-              placeholder="SWIFT/BIC"
-              control={control}
-              error={errors.swift}
-            />
-          </div>
-        </motion.section>
-
-        {/* Observações */}
-        <motion.section
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="space-y-6"
-        >
-          <div className="flex items-center gap-3 pb-4 border-b">
-            <div className="p-2 bg-gray-100 rounded-lg">
-              <FileText className="w-5 h-5 text-gray-600" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Observações
-            </h3>
-          </div>
-          
-          <Controller
-            name="observacoes"
-            control={control}
-            render={({ field }) => (
-              <textarea
-                {...field}
+            {/* Observações */}
+            <motion.section
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+              className="space-y-8"
+            >
+              <div className="flex items-center gap-4 pb-6 border-b border-gray-100">
+                <div className="flex items-center justify-center w-12 h-12 bg-gray-100 rounded-xl">
+                  <FileText className="w-6 h-6 text-gray-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Observações</h2>
+                  <p className="text-sm text-gray-500">Notas adicionais sobre o cliente</p>
+                </div>
+              </div>
+              
+              <TextAreaField
+                name="observacoes"
+                label="Observações"
+                icon={FileText}
+                value={formData.observacoes}
+                onChange={handleFieldChange}
+                error={errors.observacoes}
+                placeholder="Adicione informações relevantes sobre o cliente..."
                 rows={4}
-                placeholder="Observações adicionais sobre o cliente..."
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
               />
-            )}
-          />
-        </motion.section>
+            </motion.section>
 
-        {/* Botões de Ação */}
-        <div className="flex justify-end gap-4 pt-6 border-t">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-          >
-            Cancelar
-          </button>
-          
-          <button
-            type="submit"
-            disabled={isSubmitting || isLoading}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors flex items-center gap-2"
-          >
-            {isSubmitting || isLoading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Guardando...
-              </>
-            ) : (
-              'Guardar Cliente'
-            )}
-          </button>
-        </div>
-      </form>
+            {/* Botões */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+              className="flex flex-col sm:flex-row gap-4 pt-8 border-t border-gray-100"
+            >
+              <button
+                type="button"
+                onClick={onCancel}
+                className="flex-1 sm:flex-none px-8 py-4 text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all duration-200 font-medium"
+              >
+                Cancelar
+              </button>
+              
+              <button
+                type="submit"
+                disabled={isSubmitting || isLoading}
+                className="flex-1 px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 transition-all duration-200 flex items-center justify-center gap-3 font-medium shadow-lg"
+              >
+                {isSubmitting || isLoading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5" />
+                    Guardar Cliente
+                  </>
+                )}
+              </button>
+            </motion.div>
+          </form>
+        </motion.div>
+      </div>
     </div>
   );
 };
 
-// ✅ React.memo para evitar re-renders desnecessários
 export default React.memo(ClientForm);
-
-/* 
-🔧 PROBLEMAS IDENTIFICADOS E SOLUÇÕES APLICADAS:
-
-❌ PROBLEMA 1: Componentes definidos dentro do render
-✅ SOLUÇÃO: InputField e SelectField movidos para fora
-
-❌ PROBLEMA 2: Objetos criados durante o render
-✅ SOLUÇÃO: useMemo para opções e defaultValues
-
-❌ PROBLEMA 3: Handlers sendo recriados a cada render
-✅ SOLUÇÃO: useCallback para onSubmitForm
-
-❌ PROBLEMA 4: Keys dinâmicas ou instáveis
-✅ SOLUÇÃO: Keys estáticas baseadas em propriedades estáveis
-
-❌ PROBLEMA 5: Re-renders desnecessários
-✅ SOLUÇÃO: React.memo nos componentes filhos e principal
-
-❌ PROBLEMA 6: Dependencies do useMemo/useCallback incorretas
-✅ SOLUÇÃO: Dependencies otimizadas e corretas
-
-🎯 RESULTADO: Campos mantêm foco durante digitação!
-*/
