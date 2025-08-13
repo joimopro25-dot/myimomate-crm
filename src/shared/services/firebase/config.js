@@ -1,13 +1,13 @@
 // =========================================
-// 🔥 FIREBASE CONFIGURATION - FINAL
+// 🔥 FIREBASE CONFIGURATION - ATUALIZADO
 // =========================================
-// Configuração central do Firebase para MyImoMate 2.0
-// Versão ÚNICA em JavaScript - Remove config.ts duplicado
+// src/shared/services/firebase/config.js
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
+import { doc, getDoc, serverTimestamp } from 'firebase/firestore';
 
 // =========================================
 // 📊 CONFIGURAÇÃO DO PROJETO
@@ -21,22 +21,6 @@ const firebaseConfig = {
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
-
-// Validar configuração
-const requiredEnvVars = [
-  'VITE_FIREBASE_API_KEY',
-  'VITE_FIREBASE_AUTH_DOMAIN', 
-  'VITE_FIREBASE_PROJECT_ID',
-  'VITE_FIREBASE_STORAGE_BUCKET',
-  'VITE_FIREBASE_MESSAGING_SENDER_ID',
-  'VITE_FIREBASE_APP_ID'
-];
-
-const missingVars = requiredEnvVars.filter(envVar => !import.meta.env[envVar]);
-if (missingVars.length > 0) {
-  console.error('🚨 Variáveis de ambiente Firebase em falta:', missingVars);
-  console.error('📝 Copie .env.example para .env.local e preencha as credenciais');
-}
 
 // =========================================
 // 🚀 INICIALIZAÇÃO DOS SERVIÇOS
@@ -82,7 +66,7 @@ if (isDevelopment && useEmulators) {
 }
 
 // =========================================
-// 📊 CONSTANTES DE COLEÇÕES
+// 📊 CONSTANTES DE COLLECTIONS
 // =========================================
 
 export const COLLECTIONS = {
@@ -179,53 +163,47 @@ export const testFirebaseConnection = async () => {
   }
 };
 
-// =========================================
-// 🛡️ REGRAS DE SEGURANÇA (REFERÊNCIA)
-// =========================================
-
-/*
-FIRESTORE SECURITY RULES:
-
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Users podem acessar apenas seus próprios dados
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-      
-      // Subcoleções do utilizador (clients, leads, etc)
-      match /{collection}/{document=**} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
-      }
-    }
+/**
+ * Testar criação de cliente (debug)
+ */
+export const testClientCreation = async (userId) => {
+  try {
+    console.log('🧪 Testando criação de cliente...', { userId });
     
-    // Permitir leitura de configurações públicas (se necessário)
-    match /public/{document=**} {
-      allow read: if true;
-      allow write: if false;
-    }
-  }
-}
-
-STORAGE SECURITY RULES:
-
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    // Users podem acessar apenas seus próprios arquivos
-    match /users/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && 
-                           request.auth.uid == userId &&
-                           resource.size < 10 * 1024 * 1024; // 10MB max
-    }
+    const { collection, addDoc } = await import('firebase/firestore');
     
-    // Arquivos temporários (com TTL)
-    match /temp/{allPaths=**} {
-      allow read, write: if request.auth != null;
-    }
+    // Tentar criar documento teste na collection de clientes
+    const clientsRef = collection(db, getUserCollection(userId, 'clients'));
+    
+    const testClient = {
+      dadosPessoais: {
+        nome: 'Cliente Teste',
+        email: 'teste@exemplo.com',
+        telefone: '+351 912 345 678'
+      },
+      roles: ['comprador'],
+      ativo: true,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      createdBy: userId,
+      test: true // Flag para identificar como teste
+    };
+    
+    const docRef = await addDoc(clientsRef, testClient);
+    console.log('✅ Cliente teste criado com ID:', docRef.id);
+    
+    // Remover documento teste
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(docRef);
+    console.log('🗑️ Cliente teste removido');
+    
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Erro no teste de criação:', error);
+    return false;
   }
-}
-*/
+};
 
 // =========================================
 // 🔄 INICIALIZAÇÃO FINAL
@@ -242,5 +220,36 @@ if (!isFirebaseConfigured()) {
   console.log('📋 Verifique se o arquivo .env.local existe e contém todas as variáveis necessárias');
 }
 
-// Export da app para casos especiais
+// Export padrão da app para casos especiais
 export default app;
+
+// Export do serverTimestamp para uso nos services
+export { serverTimestamp };
+
+/*
+📋 REGRAS FIREBASE RECOMENDADAS:
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users podem acessar apenas seus próprios dados
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Subcoleções do utilizador (clients, leads, etc)
+      match /{collection}/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Permitir teste de conectividade
+    match /test/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+🧪 FUNÇÕES DE TESTE DISPONÍVEIS:
+- testFirebaseConnection(): Testa conectividade básica
+- testClientCreation(userId): Testa criação de cliente real
+*/

@@ -1,11 +1,11 @@
 // =========================================
-// 🎣 HOOK PRINCIPAL - useClients
+// 🎣 HOOK PRINCIPAL - useClients CORRIGIDO
 // =========================================
 // Hook principal para gestão de clientes
 // Conecta o Zustand Store com Firebase Services
 
-import { useEffect, useCallback, useMemo } from 'react';
-import { useAuth } from '@/shared/hooks/useAuth'; // Assumindo que existe
+import React, { useEffect, useCallback, useMemo, useState } from 'react'; // ✅ ADICIONADO React e useState
+import { useAuth } from '@/shared/hooks/useAuth';
 import { useClientsStore } from '../stores/clientsStore';
 import clientsService from '../services/clientsService';
 import { PAGINATION } from '../types/enums';
@@ -24,9 +24,9 @@ export const useClients = (options = {}) => {
     limit = PAGINATION.DEFAULT_LIMIT
   } = options;
 
-  // Auth context (assumindo que existe)
+  // Auth context
   const { user } = useAuth();
-  const userId = user?.uid;
+  const userId = user?.uid || user?.id; // ✅ CORRIGIDO - fallback para ambos
 
   // Store state
   const {
@@ -64,10 +64,15 @@ export const useClients = (options = {}) => {
    * Buscar clientes com opções
    */
   const handleFetchClients = useCallback(async (fetchOptions = {}) => {
-    if (!userId) return;
+    if (!userId) {
+      console.log('❌ useClients: userId não encontrado', { user, userId });
+      return;
+    }
 
     try {
       const { reset = false, customFilters = null } = fetchOptions;
+      
+      console.log('🔍 Buscando clientes...', { userId, filters: customFilters || filters });
       
       // Conectar store com service
       const response = await clientsService.getClients(userId, {
@@ -100,6 +105,7 @@ export const useClients = (options = {}) => {
       return response;
 
     } catch (error) {
+      console.error('❌ Erro ao buscar clientes:', error);
       useClientsStore.setState({
         loading: false,
         error: error.message
@@ -164,12 +170,21 @@ export const useClients = (options = {}) => {
    * Criar novo cliente
    */
   const handleCreateClient = useCallback(async (clientData) => {
-    if (!userId) throw new Error('Usuário não autenticado');
+    console.log('🏗️ handleCreateClient chamado:', { userId, clientData });
+    
+    if (!userId) {
+      const error = new Error('Usuário não autenticado');
+      console.error('❌ Erro de autenticação:', error);
+      throw error;
+    }
 
     try {
       useClientsStore.setState({ loading: true, error: null });
 
+      console.log('📡 Chamando clientsService.createClient...');
       const newClient = await clientsService.createClient(userId, clientData);
+
+      console.log('✅ Cliente criado com sucesso:', newClient);
 
       // Atualizar store
       useClientsStore.setState((state) => ({
@@ -184,6 +199,7 @@ export const useClients = (options = {}) => {
       return newClient;
 
     } catch (error) {
+      console.error('❌ Erro ao criar cliente:', error);
       useClientsStore.setState({
         loading: false,
         error: error.message
@@ -347,6 +363,7 @@ export const useClients = (options = {}) => {
   // Fetch inicial
   useEffect(() => {
     if (fetchOnMount && autoFetch && userId) {
+      console.log('🚀 useClients: Fetch inicial', { userId });
       handleFetchClients({ reset: true });
       handleFetchStats();
     }
@@ -502,13 +519,14 @@ export const useClientsList = (filters = {}) => {
   const [error, setError] = useState(null);
 
   const fetchClients = useCallback(async () => {
-    if (!user?.uid) return;
+    const userId = user?.uid || user?.id; // ✅ CORRIGIDO
+    if (!userId) return;
 
     try {
       setLoading(true);
       setError(null);
       
-      const response = await clientsService.getClients(user.uid, { filters });
+      const response = await clientsService.getClients(userId, { filters });
       setClients(response.data);
       
     } catch (err) {
@@ -516,7 +534,7 @@ export const useClientsList = (filters = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, filters]);
+  }, [user?.uid, user?.id, filters]);
 
   useEffect(() => {
     fetchClients();
