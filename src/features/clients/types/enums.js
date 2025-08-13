@@ -456,8 +456,8 @@ export const REQUIRED_FIELDS = {
   STEP_1: ['dadosPessoais.nome', 'dadosPessoais.email', 'dadosPessoais.telefone'], // Dados pessoais essenciais
   STEP_2: [], // Cônjuge (condicional)
   STEP_3: [], // Dados bancários (opcional)
-  STEP_4: ['dataPrimeiroContacto', 'meioPrimeiroContacto'], // Dados de contacto
-  STEP_5: ['orcamentoMinimo', 'orcamentoMaximo'], // Perfil imobiliário
+  STEP_4: ['dadosContacto.dataPrimeiroContacto', 'dadosContacto.meioPrimeiroContacto'], // Dados de contacto
+  STEP_5: ['perfilImobiliario.orcamentoMinimo', 'perfilImobiliario.orcamentoMaximo'], // Perfil imobiliário
   STEP_6: ['roles'] // Roles (obrigatório)
 };
 
