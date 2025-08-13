@@ -4,7 +4,7 @@
 // Hook principal para gestão de clientes
 // Conecta o Zustand Store com Firebase Services
 
-import React, { useEffect, useCallback, useMemo, useState } from 'react'; // ✅ ADICIONADO React e useState
+import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useClientsStore } from '../stores/clientsStore';
 import clientsService from '../services/clientsService';
@@ -26,7 +26,11 @@ export const useClients = (options = {}) => {
 
   // Auth context
   const { user } = useAuth();
-  const userId = user?.uid || user?.id; // ✅ CORRIGIDO - fallback para ambos
+  const userId = user?.uid || user?.id;
+
+  // ✅ REF para evitar múltiplos fetches
+  const initialFetchDone = useRef(false);
+  const isPollingActive = useRef(false);
 
   // Store state
   const {
@@ -112,7 +116,7 @@ export const useClients = (options = {}) => {
       });
       throw error;
     }
-  }, [userId, filters, page, limit]);
+  }, [userId, filters, page, limit]); // ✅ Dependências fixas
 
   /**
    * Buscar cliente específico
@@ -212,7 +216,7 @@ export const useClients = (options = {}) => {
    * Atualizar cliente
    */
   const handleUpdateClient = useCallback(async (clientId, updates) => {
-    if (!userId || !clientId) throw new Error('Parâmetros inválidos');
+    if (!userId || !clientId) return null;
 
     try {
       useClientsStore.setState({ loading: true, error: null });
@@ -228,6 +232,9 @@ export const useClients = (options = {}) => {
         loading: false
       }));
 
+      // Atualizar stats
+      handleFetchStats();
+
       return updatedClient;
 
     } catch (error) {
@@ -237,13 +244,13 @@ export const useClients = (options = {}) => {
       });
       throw error;
     }
-  }, [userId]);
+  }, [userId, handleFetchStats]);
 
   /**
    * Deletar cliente
    */
   const handleDeleteClient = useCallback(async (clientId) => {
-    if (!userId || !clientId) throw new Error('Parâmetros inválidos');
+    if (!userId || !clientId) return false;
 
     try {
       useClientsStore.setState({ loading: true, error: null });
@@ -360,32 +367,49 @@ export const useClients = (options = {}) => {
   // ⚡ EFFECTS
   // =========================================
 
-  // Fetch inicial
+  // ✅ Fetch inicial - CORRIGIDO para evitar loop
   useEffect(() => {
-    if (fetchOnMount && autoFetch && userId) {
-      console.log('🚀 useClients: Fetch inicial', { userId });
+    if (fetchOnMount && autoFetch && userId && !initialFetchDone.current) {
+      console.log('🚀 useClients: Fetch inicial (ÚNICO)', { userId });
+      initialFetchDone.current = true;
+      
       handleFetchClients({ reset: true });
       handleFetchStats();
     }
-  }, [fetchOnMount, autoFetch, userId, handleFetchClients, handleFetchStats]);
+  }, [userId]); // ✅ APENAS userId como dependência
 
-  // Polling (se habilitado)
+  // ✅ Reset inicial fetch flag quando userId muda
   useEffect(() => {
-    if (!enablePolling || !userId) return;
+    if (userId) {
+      initialFetchDone.current = false;
+    }
+  }, [userId]);
 
+  // ✅ Polling (se habilitado) - CORRIGIDO
+  useEffect(() => {
+    if (!enablePolling || !userId || isPollingActive.current) return;
+
+    isPollingActive.current = true;
     const interval = setInterval(() => {
-      handleRefresh();
+      if (userId) {
+        handleRefresh();
+      }
     }, pollingInterval);
 
-    return () => clearInterval(interval);
-  }, [enablePolling, userId, pollingInterval, handleRefresh]);
+    return () => {
+      clearInterval(interval);
+      isPollingActive.current = false;
+    };
+  }, [enablePolling, userId, pollingInterval]); // ✅ Dependências fixas
 
-  // Cleanup on unmount
+  // ✅ Cleanup on unmount
   useEffect(() => {
     return () => {
       clearError();
+      initialFetchDone.current = false;
+      isPollingActive.current = false;
     };
-  }, [clearError]);
+  }, []);
 
   // =========================================
   // 📊 COMPUTED VALUES
@@ -476,11 +500,18 @@ export const useClient = (clientId) => {
     autoFetch: false 
   });
 
+  const fetchDone = useRef(false);
+
   useEffect(() => {
-    if (clientId) {
+    if (clientId && !fetchDone.current) {
+      fetchDone.current = true;
       fetchClient(clientId);
     }
-  }, [clientId, fetchClient]);
+  }, [clientId]);
+
+  useEffect(() => {
+    fetchDone.current = false;
+  }, [clientId]);
 
   return {
     client: selectedClient,
@@ -498,9 +529,14 @@ export const useClientStats = () => {
     autoFetch: false 
   });
 
+  const fetchDone = useRef(false);
+
   useEffect(() => {
-    fetchStats();
-  }, [fetchStats]);
+    if (!fetchDone.current) {
+      fetchDone.current = true;
+      fetchStats();
+    }
+  }, []);
 
   return {
     stats,
@@ -519,7 +555,7 @@ export const useClientsList = (filters = {}) => {
   const [error, setError] = useState(null);
 
   const fetchClients = useCallback(async () => {
-    const userId = user?.uid || user?.id; // ✅ CORRIGIDO
+    const userId = user?.uid || user?.id;
     if (!userId) return;
 
     try {
@@ -534,7 +570,7 @@ export const useClientsList = (filters = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [user?.uid, user?.id, filters]);
+  }, [user?.uid, user?.id, JSON.stringify(filters)]); // ✅ Stringify filters
 
   useEffect(() => {
     fetchClients();
