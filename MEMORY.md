@@ -140,7 +140,53 @@ LOGS ANALISADOS:
 - Estados de loading/error
 - Refetch em background
 
-## 🚀 ROADMAP FUTURO
+## 🎯 **ARQUITETURA DE NEGÓCIOS DEFINIDA**
+
+### **🏗️ ESTRUTURA CONCEITUAL VALIDADA**
+
+**INSIGHT ESTRATÉGICO:** Cada role de cliente tem necessidades e processos únicos que requerem funis especializados.
+
+```
+CLIENTE (base) 
+├── ROLES múltiplos simultâneos
+│   ├── 🛒 COMPRADOR → Deal Pipeline + Budget tracking
+│   ├── 🏠 VENDEDOR → Deal Pipeline + Marketing
+│   ├── 💰 INVESTIDOR → Viabilidades + ROI analysis  
+│   ├── 🏢 SENHORIO → Gestão Rendimentos + Impostos
+│   └── 🏠 INQUILINO → Opções Arrendamento + Filtros
+│
+└── DEALS por role (KANBAN)
+    ├── Deal #1: Comprador - Casa Lisboa (€300k)
+    ├── Deal #2: Investidor - Apartamento Porto (€150k) 
+    └── Deal #3: Senhorio - Gestão 3 imóveis
+```
+
+### **🎲 FUNIS ESPECÍFICOS POR ROLE**
+
+**🛒 COMPRADOR Pipeline:**
+`INTERESSE → QUALIFICAÇÃO → VISITAS → PROPOSTA → NEGOCIAÇÃO → ESCRITURA`
+
+**🏠 VENDEDOR Pipeline:**  
+`CONSULTA → AVALIAÇÃO → MARKETING → OFERTAS → NEGOCIAÇÃO → VENDA`
+
+**💰 INVESTIDOR Dashboard:**
+`OPORTUNIDADE → ANÁLISE → VIABILIDADE → DECISÃO → INVESTIMENTO`
+
+**🏢 SENHORIO Gestão:**
+`IMÓVEL → ARRENDAMENTO → GESTÃO → RENOVAÇÃO/SAÍDA`
+
+**🏠 INQUILINO Pesquisa:**
+`PROCURA → FILTROS → VISITAS → PROPOSTA → CONTRATO`
+
+### **🎯 DECISÃO ARQUITETURAL FINAL**
+
+- ✅ **KANBAN aplica-se aos DEALS**, não aos clientes
+- ✅ **Clientes mantêm-se em lista/grid** com múltiplos roles
+- ✅ **Cada ROLE tem pipeline específico** com stages diferentes
+- ✅ **Deals são criados POR ROLE** e fluem no Kanban  
+- ✅ **Dashboard específico por role** (Investidor ≠ Comprador)
+
+## 🚀 ROADMAP FUTURO REFINADO
 ```
 FASE 1: ✅ Clientes COMPLETADO COM MÁXIMA EXCELÊNCIA!
 ├── ✅ Arquitetura modular estabelecida  
@@ -151,24 +197,74 @@ FASE 1: ✅ Clientes COMPLETADO COM MÁXIMA EXCELÊNCIA!
 ├── ✅ Refactoring ficheiros grandes aplicado (1400→950 linhas)
 ├── ✅ Validações corrigidas e otimizadas
 ├── ✅ Bug fixes aplicados com sucesso
+├── ✅ Arquitetura de negócios por roles definida
 └── ✅ PROJECT_RULES seguidas rigorosamente
 
-FASE 2: Core Features (PRÓXIMO)
-├── Dashboard principal
-├── Sistema de autenticação
-├── Relatórios básicos
-└── Notificações
+FASE 2: 🎯 DEALS & PIPELINES (PRÓXIMO PRIORITÁRIO)
+├── 🎲 Módulo Deals com Kanban boards por role
+├── 📊 Pipeline Comprador (6 stages)
+├── 🏠 Pipeline Vendedor (6 stages)  
+├── 💰 Dashboard Investidor (ROI, Yield, Cash Flow)
+├── 🏢 Dashboard Senhorio (Rendas, IMI, Inquilinos)
+├── 🏠 Pesquisa Inquilino (Filtros, Opções)
+└── 🔄 Integração Deals ↔ Clientes
 
-FASE 3: Funcionalidades Avançadas  
-├── Módulo Leads integrado
-├── Tarefas e calendário
-├── Relatórios avançados
-└── Integrações externas
+FASE 3: 📊 DASHBOARDS ESPECIALIZADOS
+├── 💰 Calculadora Viabilidade Investimento
+├── 🏢 Gestão Rendimentos & Impostos  
+├── 📈 Relatórios por Role
+├── 📅 Calendar integrado com pipelines
+└── 🎯 KPIs específicos por tipo de negócio
 
-FASE 4: Otimizações
-├── Performance improvements
-├── Mobile responsiveness  
-└── PWA features
+FASE 4: 🔧 OTIMIZAÇÕES & INTEGRAÇÕES
+├── 📱 Mobile responsiveness  
+├── 🌐 PWA features
+├── 🔗 Integrações externas (Idealista, etc)
+└── 🤖 Automações por pipeline
+```
+
+### **🏗️ ESTRUTURA MODULAR PLANEADA**
+
+```
+src/features/
+├── clients/ (✅ COMPLETADO)
+│   └── Gestão clientes + roles múltiplos
+│
+├── deals/ (🎯 PRÓXIMO - FASE 2)  
+│   ├── components/
+│   │   ├── kanban/
+│   │   │   ├── DealBoard.jsx (Kanban por role)
+│   │   │   ├── DealCard.jsx (Card de deal)
+│   │   │   └── DealPipeline.jsx (Pipeline específico)
+│   │   ├── forms/
+│   │   │   ├── DealForm.jsx (Criar deal)
+│   │   │   └── DealFormByRole.jsx (Form específico)  
+│   │   └── dashboards/
+│   │       ├── CompradorDashboard.jsx
+│   │       ├── InvestidorDashboard.jsx
+│   │       └── SenhorioDashboard.jsx
+│   ├── hooks/
+│   │   ├── useDeals.js (CRUD deals)
+│   │   ├── useDealPipeline.js (Kanban logic)
+│   │   └── useDealsByRole.js (Filtros por role)
+│   └── utils/
+│       ├── dealUtils.js (Helpers)
+│       ├── pipelineConfig.js (Config stages)
+│       └── roleSpecificLogic.js (Lógica por role)
+│
+├── investments/ (🔮 FASE 3)
+│   ├── ViabilityCalculator.jsx (ROI, Yield)
+│   ├── ROIAnalysis.jsx (Análise profunda)
+│   └── InvestmentComparison.jsx (Comparar opções)
+│
+├── properties/ (🔮 FASE 3)  
+│   ├── PropertyManager.jsx (Gestão imóveis)
+│   ├── RentalIncome.jsx (Rendas)
+│   └── TaxCalculator.jsx (IMI, IRS)
+│
+└── analytics/ (🔮 FASE 4)
+    ├── RoleSpecificReports.jsx
+    └── BusinessIntelligence.jsx
 ```
 
 ## 🎖️ LIÇÕES APRENDIDAS - METODOLOGIA VALIDADA
@@ -257,5 +353,6 @@ Identificar próximo módulo para desenvolvimento ou otimização (Dashboard, Au
 
 ---
 
-**📝 Última atualização:** 13 Agosto 2025 - Bug fix validação ClientForm  
-**🔄 Próxima atualização:** Após identificação do próximo módulo ou funcionalidade
+**📝 Última atualização:** 13 Agosto 2025 - Arquitetura de negócios por roles definida  
+**🔄 Próxima ação:** Implementar módulo DEALS com Kanban boards específicos por role
+**🎯 Prioridade:** Pipeline Comprador → Pipeline Vendedor → Dashboard Investidor
