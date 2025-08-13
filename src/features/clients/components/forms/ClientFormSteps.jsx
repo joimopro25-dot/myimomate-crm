@@ -98,7 +98,6 @@ export const Step1DadosPessoais = ({ formData, updateField, errors }) => (
         value={formData.dadosPessoais.dataNascimento}
         onChange={(value) => updateField('dadosPessoais.dataNascimento', value)}
         error={errors['dadosPessoais.dataNascimento']}
-        required
       />
     </div>
 

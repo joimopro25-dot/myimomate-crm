@@ -1,86 +1,110 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { EstadoCivil, ComunhaoBens } from '../types/enums';
-
 // =========================================
-// 🔧 CONSTANTS
+// 🎯 HOOK - useClientForm EXPANDIDO
 // =========================================
+// Hook para formulário de cliente com 6 passos
+// Estrutura completa com dados expandidos para imobiliário
 
-const ESTADOS_COM_CONJUGE = [EstadoCivil.CASADO, EstadoCivil.UNIAO_FACTO];
+import { useState, useCallback, useMemo } from 'react';
+import { useClients } from './useClients';
 
-const VALIDATION_REGEX = {
-  EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-  TELEFONE: /^(\+351\s?)?[9][1236]\s?\d{3}\s?\d{3}\s?\d{3}$/,
-  NIF: /^[0-9]{9}$/,
-  IBAN: /^PT50\s?[0-9]{4}\s?[0-9]{4}\s?[0-9]{4}\s?[0-9]{4}\s?[0-9]{3}$/,
-  CARTAO_CIDADAO: /^[0-9]{8}\s?[0-9]\s?[A-Z]{2}[0-9]$/
-};
+// Enums e constantes
+import { 
+  EstadoCivil, 
+  ESTADOS_COM_CONJUGE, 
+  REQUIRED_FIELDS,
+  FORM_STEPS 
+} from '../types/enums';
 
-const REQUIRED_FIELDS = {
-  STEP_1: [
-    'dadosPessoais.nome',
-    'dadosPessoais.email',
-    'dadosPessoais.telefone'
-  ],
-  STEP_2: [], // Dinâmico baseado no estado civil
-  STEP_3: [], // Opcional
-  STEP_4: [], // Opcional
-  STEP_5: ['roles']
-};
-
-// =========================================
-// 🎯 MAIN HOOK
-// =========================================
-
-export const useClientForm = (initialData = {}, user = null) => {
-  
+/**
+ * useClientForm - Hook para formulário de cliente expandido
+ * Responsabilidades:
+ * - Gestão de estado do formulário (6 passos)
+ * - Validação por passo e campo
+ * - Navegação entre passos
+ * - Submit com Firebase
+ * - Dados expandidos para CRM imobiliário
+ */
+export const useClientForm = (initialData = null) => {
   // =========================================
-  // 📊 STATE MANAGEMENT
+  // 🎣 HOOKS & DEPENDENCIES
+  // =========================================
+
+  const { createClient, updateClient } = useClients({ autoFetch: false });
+
+  // =========================================
+  // 🗂️ FORM STATE - ESTRUTURA EXPANDIDA
   // =========================================
 
   const [currentStep, setCurrentStep] = useState(1);
-
   const [formData, setFormData] = useState({
-    // Passo 1: Dados Pessoais
+    // PASSO 1: Dados Pessoais Essenciais
     dadosPessoais: {
       nome: '',
       email: '',
       telefone: '',
       morada: '',
       dataNascimento: '',
-      naturalidade: '',
-      nacionalidade: 'Portuguesa',
-      residencia: '',
       nif: '',
-      contribuinte: '',
       numCartaoCidadao: '',
-      estadoCivil: EstadoCivil.SOLTEIRO
+      estadoCivil: EstadoCivil.SOLTEIRO,
+      profissao: '',
+      empresa: '',
+      rendimentoAnual: '',
+      habitacaoAtual: '',
+      regimeHabitacao: '',
+      ...(initialData?.dadosPessoais || {})
     },
-    
-    // Passo 2: Dados do Cônjuge
+
+    // PASSO 2: Dados do Cônjuge (condicional)
     conjuge: {
       nome: '',
       email: '',
       telefone: '',
-      nif: '',
-      contribuinte: '',
-      numCartaoCidadao: '',
       dataNascimento: '',
-      naturalidade: '',
-      nacionalidade: 'Portuguesa',
-      profissao: ''
+      nif: '',
+      profissao: '',
+      empresa: '',
+      rendimentoAnual: '',
+      ...(initialData?.conjuge || {})
     },
-    comunhaoBens: null,
-    
-    // Passo 3: Dados Bancários
+    comunhaoBens: initialData?.comunhaoBens || '',
+
+    // PASSO 3: Dados Bancários e Financeiros
     dadosBancarios: {
       banco: '',
       iban: '',
-      swift: '',
       titular: '',
-      morada: ''
+      contaConjunta: false,
+      capacidadeFinanceira: 0,
+      ...(initialData?.dadosBancarios || {})
     },
-    
-    // Passo 4: Configurações de Comunicação
+
+    // PASSO 4: Histórico de Contacto e Origem
+    dadosContacto: {
+      dataPrimeiroContacto: '',
+      meioPrimeiroContacto: '',
+      origemContacto: '',
+      responsavelContacto: '',
+      temperatura: 'morno',
+      ...(initialData?.dadosContacto || {})
+    },
+
+    // PASSO 5: Perfil Imobiliário Completo
+    perfilImobiliario: {
+      orcamentoMinimo: '',
+      orcamentoMaximo: '',
+      tiposInteresse: [],
+      zonasPreferidas: [],
+      motivacaoPrincipal: '',
+      prioridades: [],
+      urgencia: 'moderada',
+      precisaFinanciamento: false,
+      percentagemEntrada: 20,
+      temImovelVenda: false,
+      ...(initialData?.perfilImobiliario || {})
+    },
+
+    // PASSO 6: Comunicações, Roles e Finalização
     comunicacoes: {
       enviarAniversario: true,
       lembretesVisitas: true,
@@ -88,19 +112,18 @@ export const useClientForm = (initialData = {}, user = null) => {
       eventos: true,
       marketing: false,
       sms: true,
+      whatsapp: true,
+      meioPreferido: 'email',
+      frequenciaContacto: 'semanal',
       horaPreferida: '09:00',
-      diasPreferidos: ['segunda', 'terca', 'quarta', 'quinta', 'sexta']
+      diasPreferidos: ['segunda', 'terca', 'quarta', 'quinta', 'sexta'],
+      ...(initialData?.comunicacoes || {})
     },
-    
-    // Passo 5: Roles e Informações Gerais
-    roles: [],
-    notas: '',
-    origem: 'website',
-    responsavel: user?.uid || '',
-    
-    // Metadados
-    ativo: true,
-    ...initialData
+
+    roles: initialData?.roles || [],
+    notas: initialData?.notas || '',
+    origem: initialData?.origem || 'website',
+    ativo: initialData?.ativo !== undefined ? initialData.ativo : true
   });
 
   const [errors, setErrors] = useState({});
@@ -109,122 +132,67 @@ export const useClientForm = (initialData = {}, user = null) => {
   const [isDirty, setIsDirty] = useState(false);
 
   // =========================================
-  // 🔍 VALIDATION FUNCTIONS
+  // 🔧 FIELD OPERATIONS
   // =========================================
 
   /**
-   * Validar campo específico
+   * Atualizar campo específico
    */
-  const validateField = useCallback((fieldPath, value) => {
-    const fieldErrors = [];
-
-    // Validações por campo
-    switch (fieldPath) {
-      case 'dadosPessoais.email':
-        if (value && !VALIDATION_REGEX.EMAIL.test(value)) {
-          fieldErrors.push('Email inválido');
+  const updateField = useCallback((fieldPath, value) => {
+    setFormData(prev => {
+      const newData = { ...prev };
+      const parts = fieldPath.split('.');
+      let current = newData;
+      
+      // Navegar até o penúltimo nível
+      for (let i = 0; i < parts.length - 1; i++) {
+        if (!current[parts[i]]) {
+          current[parts[i]] = {};
         }
-        break;
-        
-      case 'dadosPessoais.telefone':
-        if (value && !VALIDATION_REGEX.TELEFONE.test(value.replace(/\s/g, ''))) {
-          fieldErrors.push('Telefone inválido (formato: +351 xxx xxx xxx)');
-        }
-        break;
-        
-      case 'dadosPessoais.nif':
-        if (value && !VALIDATION_REGEX.NIF.test(value)) {
-          fieldErrors.push('NIF inválido (9 dígitos)');
-        }
-        break;
-        
-      case 'dadosBancarios.iban':
-        if (value && !VALIDATION_REGEX.IBAN.test(value.replace(/\s/g, ''))) {
-          fieldErrors.push('IBAN inválido (formato PT50...)');
-        }
-        break;
-        
-      case 'dadosPessoais.numCartaoCidadao':
-        if (value && !VALIDATION_REGEX.CARTAO_CIDADAO.test(value)) {
-          fieldErrors.push('Cartão de Cidadão inválido');
-        }
-        break;
-    }
-
-    return fieldErrors;
-  }, []);
-
-  /**
-   * Validar passo específico
-   */
-  const validateStep = useCallback((step) => {
-    const stepErrors = {};
-    let isValid = true;
-
-    // Campos obrigatórios por passo
-    const requiredForStep = REQUIRED_FIELDS[`STEP_${step}`] || [];
-    
-    requiredForStep.forEach(fieldPath => {
-      const value = getFieldValue(fieldPath);
-      if (!value || (typeof value === 'string' && value.trim() === '')) {
-        stepErrors[fieldPath] = ['Campo obrigatório'];
-        isValid = false;
+        current = current[parts[i]];
       }
+      
+      // Definir valor final
+      current[parts[parts.length - 1]] = value;
+      return newData;
     });
 
-    // Validações específicas por passo
-    switch (step) {
-      case 1:
-        // Validar dados pessoais
-        Object.entries(formData.dadosPessoais).forEach(([field, value]) => {
-          const fieldPath = `dadosPessoais.${field}`;
-          const fieldErrors = validateField(fieldPath, value);
-          if (fieldErrors.length > 0) {
-            stepErrors[fieldPath] = fieldErrors;
-            isValid = false;
-          }
-        });
-        break;
-        
-      case 2:
-        // Validar dados do cônjuge (se casado)
-        if (ESTADOS_COM_CONJUGE.includes(formData.dadosPessoais.estadoCivil)) {
-          if (!formData.conjuge.nome.trim()) {
-            stepErrors['conjuge.nome'] = ['Nome do cônjuge é obrigatório'];
-            isValid = false;
-          }
-          if (!formData.comunhaoBens) {
-            stepErrors['comunhaoBens'] = ['Regime de bens é obrigatório'];
-            isValid = false;
-          }
-        }
-        break;
-        
-      case 3:
-        // Validar dados bancários (opcionais, mas se preenchidos devem ser válidos)
-        Object.entries(formData.dadosBancarios).forEach(([field, value]) => {
-          if (value) {
-            const fieldPath = `dadosBancarios.${field}`;
-            const fieldErrors = validateField(fieldPath, value);
-            if (fieldErrors.length > 0) {
-              stepErrors[fieldPath] = fieldErrors;
-              isValid = false;
-            }
-          }
-        });
-        break;
-        
-      case 5:
-        // Validar roles (pelo menos um)
-        if (!formData.roles || formData.roles.length === 0) {
-          stepErrors['roles'] = ['Pelo menos um role é obrigatório'];
-          isValid = false;
-        }
-        break;
-    }
+    // Marcar como alterado
+    setIsDirty(true);
+    setTouched(prev => ({ ...prev, [fieldPath]: true }));
 
-    return { isValid, errors: stepErrors };
-  }, [formData, validateField]);
+    // Limpar erro do campo
+    if (errors[fieldPath]) {
+      setErrors(prev => ({ ...prev, [fieldPath]: undefined }));
+    }
+  }, [errors]);
+
+  /**
+   * Atualizar múltiplos campos
+   */
+  const updateFields = useCallback((updates) => {
+    setFormData(prev => {
+      let newData = { ...prev };
+      
+      Object.entries(updates).forEach(([fieldPath, value]) => {
+        const parts = fieldPath.split('.');
+        let current = newData;
+        
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (!current[parts[i]]) {
+            current[parts[i]] = {};
+          }
+          current = current[parts[i]];
+        }
+        
+        current[parts[parts.length - 1]] = value;
+      });
+      
+      return newData;
+    });
+
+    setIsDirty(true);
+  }, []);
 
   /**
    * Obter valor de campo por path
@@ -241,64 +209,170 @@ export const useClientForm = (initialData = {}, user = null) => {
   }, [formData]);
 
   // =========================================
-  // 🔄 FORM ACTIONS - CORREÇÃO FINAL
+  // 🔍 VALIDATION
   // =========================================
 
   /**
-   * ✅ ATUALIZAR CAMPO - SEM DEPENDÊNCIAS INSTÁVEIS!
+   * Validar campo individual
    */
-  const updateField = useCallback((fieldPath, value) => {
-    // 1. Atualizar os dados
-    setFormData(prev => {
-      const newData = { ...prev };
-      const parts = fieldPath.split('.');
-      let current = newData;
-      
-      // Navegar até o penúltimo nível
-      for (let i = 0; i < parts.length - 1; i++) {
-        if (!current[parts[i]]) {
-          current[parts[i]] = {};
+  const validateField = useCallback((fieldPath, value) => {
+    const errors = [];
+    
+    // Validações básicas
+    if (REQUIRED_FIELDS.STEP_1.includes(fieldPath.split('.').pop())) {
+      if (!value || value.toString().trim() === '') {
+        errors.push('Campo obrigatório');
+        return errors;
+      }
+    }
+
+    // Validações específicas
+    switch (fieldPath) {
+      case 'dadosPessoais.email':
+        if (value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          errors.push('Email inválido');
         }
-        current = current[parts[i]];
-      }
-      
-      // Definir o valor final
-      current[parts[parts.length - 1]] = value;
-      
-      return newData;
-    });
-    
-    // 2. Marcar como touched
-    setTouched(prev => ({
-      ...prev,
-      [fieldPath]: true
-    }));
-    
-    // 3. Marcar como dirty
-    setIsDirty(true);
-    
-    // 4. Limpar erro específico deste campo
-    setErrors(prev => {
-      if (prev[fieldPath]) {
-        const newErrors = { ...prev };
-        delete newErrors[fieldPath];
-        return newErrors;
-      }
-      return prev;
-    });
-  }, []); // 🚀 ARRAY VAZIO = SEM RE-RENDERS!
+        break;
+        
+      case 'dadosPessoais.telefone':
+        if (value && !/^(\+351)?[0-9]{9}$/.test(value.replace(/\s/g, ''))) {
+          errors.push('Telefone inválido (formato: +351 123 456 789)');
+        }
+        break;
+        
+      case 'dadosPessoais.nif':
+        if (value && !/^[0-9]{9}$/.test(value)) {
+          errors.push('NIF deve ter 9 dígitos');
+        }
+        break;
+        
+      case 'dadosBancarios.iban':
+        if (value && !/^PT50[0-9]{21}$/.test(value.replace(/\s/g, ''))) {
+          errors.push('IBAN português inválido');
+        }
+        break;
+        
+      case 'dadosPessoais.dataNascimento':
+        if (value) {
+          const birthDate = new Date(value);
+          const today = new Date();
+          const age = today.getFullYear() - birthDate.getFullYear();
+          
+          if (age < 18 || age > 120) {
+            errors.push('Idade deve estar entre 18 e 120 anos');
+          }
+        }
+        break;
+    }
+
+    return errors;
+  }, []);
 
   /**
-   * Atualizar múltiplos campos
+   * Validar passo completo
    */
-  const updateFields = useCallback((updates) => {
-    Object.entries(updates).forEach(([fieldPath, value]) => {
-      updateField(fieldPath, value);
+  const validateStep = useCallback((step) => {
+    const stepErrors = {};
+    let isValid = true;
+
+    // Validar campos obrigatórios do passo
+    const requiredFields = REQUIRED_FIELDS[`STEP_${step}`] || [];
+    
+    requiredFields.forEach(field => {
+      const value = getFieldValue(field);
+      if (!value || value.toString().trim() === '') {
+        stepErrors[field] = 'Campo obrigatório';
+        isValid = false;
+      }
     });
-  }, [updateField]);
+
+    // Validações específicas por passo
+    switch (step) {
+      case 1: // Dados Pessoais
+        // Validar campos essenciais
+        ['nome', 'email', 'telefone', 'dataNascimento'].forEach(field => {
+          const fieldPath = `dadosPessoais.${field}`;
+          const value = getFieldValue(fieldPath);
+          const fieldErrors = validateField(fieldPath, value);
+          
+          if (fieldErrors.length > 0) {
+            stepErrors[fieldPath] = fieldErrors[0];
+            isValid = false;
+          }
+        });
+        break;
+
+      case 2: // Dados do Cônjuge
+        // Só validar se estado civil requer cônjuge
+        if (ESTADOS_COM_CONJUGE.includes(formData.dadosPessoais.estadoCivil)) {
+          if (!formData.conjuge.nome?.trim()) {
+            stepErrors['conjuge.nome'] = 'Nome do cônjuge é obrigatório';
+            isValid = false;
+          }
+          if (!formData.comunhaoBens) {
+            stepErrors['comunhaoBens'] = 'Regime de bens é obrigatório';
+            isValid = false;
+          }
+        }
+        break;
+
+      case 3: // Dados Bancários
+        // Validações opcionais mas se preenchidas devem estar corretas
+        if (formData.dadosBancarios.iban) {
+          const ibanErrors = validateField('dadosBancarios.iban', formData.dadosBancarios.iban);
+          if (ibanErrors.length > 0) {
+            stepErrors['dadosBancarios.iban'] = ibanErrors[0];
+            isValid = false;
+          }
+        }
+        break;
+
+      case 4: // Dados de Contacto
+        if (!formData.dadosContacto.dataPrimeiroContacto) {
+          stepErrors['dadosContacto.dataPrimeiroContacto'] = 'Data do primeiro contacto é obrigatória';
+          isValid = false;
+        }
+        if (!formData.dadosContacto.meioPrimeiroContacto) {
+          stepErrors['dadosContacto.meioPrimeiroContacto'] = 'Meio do primeiro contacto é obrigatório';
+          isValid = false;
+        }
+        break;
+
+      case 5: // Perfil Imobiliário
+        if (!formData.perfilImobiliario.orcamentoMinimo) {
+          stepErrors['perfilImobiliario.orcamentoMinimo'] = 'Orçamento mínimo é obrigatório';
+          isValid = false;
+        }
+        if (!formData.perfilImobiliario.orcamentoMaximo) {
+          stepErrors['perfilImobiliario.orcamentoMaximo'] = 'Orçamento máximo é obrigatório';
+          isValid = false;
+        }
+        // Validar que máximo > mínimo
+        if (formData.perfilImobiliario.orcamentoMinimo && formData.perfilImobiliario.orcamentoMaximo) {
+          if (formData.perfilImobiliario.orcamentoMaximo <= formData.perfilImobiliario.orcamentoMinimo) {
+            stepErrors['perfilImobiliario.orcamentoMaximo'] = 'Orçamento máximo deve ser maior que o mínimo';
+            isValid = false;
+          }
+        }
+        break;
+
+      case 6: // Roles e Finalização
+        if (!formData.roles || formData.roles.length === 0) {
+          stepErrors['roles'] = 'Selecione pelo menos um role';
+          isValid = false;
+        }
+        break;
+    }
+
+    return { isValid, errors: stepErrors };
+  }, [formData, getFieldValue, validateField]);
+
+  // =========================================
+  // 🧹 FORM ACTIONS
+  // =========================================
 
   /**
-   * Reset do formulário
+   * Reset formulário
    */
   const resetForm = useCallback(() => {
     setFormData({
@@ -308,33 +382,51 @@ export const useClientForm = (initialData = {}, user = null) => {
         telefone: '',
         morada: '',
         dataNascimento: '',
-        naturalidade: '',
-        nacionalidade: 'Portuguesa',
-        residencia: '',
         nif: '',
-        contribuinte: '',
         numCartaoCidadao: '',
-        estadoCivil: EstadoCivil.SOLTEIRO
+        estadoCivil: EstadoCivil.SOLTEIRO,
+        profissao: '',
+        empresa: '',
+        rendimentoAnual: '',
+        habitacaoAtual: '',
+        regimeHabitacao: ''
       },
       conjuge: {
         nome: '',
         email: '',
         telefone: '',
-        nif: '',
-        contribuinte: '',
-        numCartaoCidadao: '',
         dataNascimento: '',
-        naturalidade: '',
-        nacionalidade: 'Portuguesa',
-        profissao: ''
+        nif: '',
+        profissao: '',
+        empresa: '',
+        rendimentoAnual: ''
       },
-      comunhaoBens: null,
+      comunhaoBens: '',
       dadosBancarios: {
         banco: '',
         iban: '',
-        swift: '',
         titular: '',
-        morada: ''
+        contaConjunta: false,
+        capacidadeFinanceira: 0
+      },
+      dadosContacto: {
+        dataPrimeiroContacto: '',
+        meioPrimeiroContacto: '',
+        origemContacto: '',
+        responsavelContacto: '',
+        temperatura: 'morno'
+      },
+      perfilImobiliario: {
+        orcamentoMinimo: '',
+        orcamentoMaximo: '',
+        tiposInteresse: [],
+        zonasPreferidas: [],
+        motivacaoPrincipal: '',
+        prioridades: [],
+        urgencia: 'moderada',
+        precisaFinanciamento: false,
+        percentagemEntrada: 20,
+        temImovelVenda: false
       },
       comunicacoes: {
         enviarAniversario: true,
@@ -343,13 +435,15 @@ export const useClientForm = (initialData = {}, user = null) => {
         eventos: true,
         marketing: false,
         sms: true,
+        whatsapp: true,
+        meioPreferido: 'email',
+        frequenciaContacto: 'semanal',
         horaPreferida: '09:00',
         diasPreferidos: ['segunda', 'terca', 'quarta', 'quinta', 'sexta']
       },
       roles: [],
       notas: '',
       origem: 'website',
-      responsavel: user?.uid || '',
       ativo: true,
       ...initialData
     });
@@ -357,7 +451,7 @@ export const useClientForm = (initialData = {}, user = null) => {
     setErrors({});
     setTouched({});
     setIsDirty(false);
-  }, [initialData, user?.uid]);
+  }, [initialData]);
 
   // =========================================
   // 🚀 NAVIGATION
@@ -374,7 +468,7 @@ export const useClientForm = (initialData = {}, user = null) => {
       return false;
     }
     
-    if (currentStep < 5) {
+    if (currentStep < 6) {
       setCurrentStep(prev => prev + 1);
       return true;
     }
@@ -395,7 +489,7 @@ export const useClientForm = (initialData = {}, user = null) => {
    * Ir para passo específico
    */
   const goToStep = useCallback((step) => {
-    if (step >= 1 && step <= 5) {
+    if (step >= 1 && step <= 6) {
       setCurrentStep(step);
     }
   }, []);
@@ -416,7 +510,7 @@ export const useClientForm = (initialData = {}, user = null) => {
       let allValid = true;
       let allErrors = {};
       
-      for (let step = 1; step <= 5; step++) {
+      for (let step = 1; step <= 6; step++) {
         const validation = validateStep(step);
         if (!validation.isValid) {
           allValid = false;
@@ -446,10 +540,12 @@ export const useClientForm = (initialData = {}, user = null) => {
       
       console.log('Dados para submeter:', dataToSubmit);
       
-      // Aqui integraria com API/Firebase
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Submit via Firebase
+      const result = initialData?.id 
+        ? await updateClient(initialData.id, dataToSubmit)
+        : await createClient(dataToSubmit);
       
-      return dataToSubmit;
+      return result;
       
     } catch (error) {
       console.error('Erro ao submeter formulário:', error);
@@ -457,17 +553,17 @@ export const useClientForm = (initialData = {}, user = null) => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, validateStep]);
+  }, [formData, validateStep, createClient, updateClient, initialData]);
 
   // =========================================
   // 📊 COMPUTED VALUES
   // =========================================
 
   const computedValues = useMemo(() => {
-    const totalSteps = 5;
+    const totalSteps = 6;
     const progressPercentage = (currentStep / totalSteps) * 100;
     const isFirstStep = currentStep === 1;
-    const isLastStep = currentStep === 5;
+    const isLastStep = currentStep === 6;
     
     return {
       totalSteps,
@@ -475,7 +571,8 @@ export const useClientForm = (initialData = {}, user = null) => {
       isFirstStep,
       isLastStep,
       hasErrors: Object.keys(errors).length > 0,
-      isConjugeRequired: ESTADOS_COM_CONJUGE.includes(formData.dadosPessoais.estadoCivil)
+      isConjugeRequired: ESTADOS_COM_CONJUGE.includes(formData.dadosPessoais.estadoCivil),
+      currentStepConfig: FORM_STEPS[currentStep]
     };
   }, [currentStep, errors, formData.dadosPessoais.estadoCivil]);
 
@@ -514,115 +611,6 @@ export const useClientForm = (initialData = {}, user = null) => {
     
     // Submit
     submitForm
-  };
-};
-
-// =========================================
-// 🎯 SPECIALIZED HOOKS
-// =========================================
-
-/**
- * Hook para campo específico
- */
-export const useFormField = (fieldPath, formHook) => {
-  const { formData, updateField, errors, touched } = formHook;
-  
-  const value = formHook.getFieldValue(fieldPath);
-  const error = errors[fieldPath];
-  const isTouched = touched[fieldPath];
-  
-  const setValue = useCallback((newValue) => {
-    updateField(fieldPath, newValue);
-  }, [fieldPath, updateField]);
-  
-  return {
-    value,
-    setValue,
-    error,
-    isTouched,
-    hasError: !!error,
-    isValid: !error && isTouched
-  };
-};
-
-/**
- * Hook para validação de passo
- */
-export const useStepValidation = (step, formHook) => {
-  const { validateStep, errors } = formHook;
-  
-  const validation = useMemo(() => {
-    return validateStep(step);
-  }, [step, validateStep]);
-  
-  const stepErrors = useMemo(() => {
-    return Object.entries(errors).filter(([key]) => {
-      // Filtrar erros relevantes para este passo
-      switch (step) {
-        case 1:
-          return key.startsWith('dadosPessoais.');
-        case 2:
-          return key.startsWith('conjuge.') || key === 'comunhaoBens';
-        case 3:
-          return key.startsWith('dadosBancarios.');
-        case 4:
-          return key.startsWith('comunicacoes.');
-        case 5:
-          return key === 'roles' || key === 'origem';
-        default:
-          return false;
-      }
-    });
-  }, [step, errors]);
-  
-  return {
-    isValid: validation.isValid,
-    errors: validation.errors,
-    stepErrors,
-    hasStepErrors: stepErrors.length > 0
-  };
-};
-
-/**
- * Hook para auto-complete de moradas
- */
-export const useAddressAutocomplete = () => {
-  const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(false);
-  
-  const searchAddress = useCallback(async (query) => {
-    if (!query || query.length < 3) {
-      setSuggestions([]);
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      
-      // Aqui integraria com serviço de geocoding (Google Maps, etc.)
-      // Por agora simular com dados estáticos
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const mockSuggestions = [
-        { address: `${query}, Lisboa`, coordinates: { lat: 38.7223, lng: -9.1393 } },
-        { address: `${query}, Porto`, coordinates: { lat: 41.1579, lng: -8.6291 } },
-        { address: `${query}, Braga`, coordinates: { lat: 41.5518, lng: -8.4229 } }
-      ];
-      
-      setSuggestions(mockSuggestions);
-      
-    } catch (error) {
-      console.error('Erro na pesquisa de morada:', error);
-      setSuggestions([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-  
-  return {
-    suggestions,
-    loading,
-    searchAddress
   };
 };
 

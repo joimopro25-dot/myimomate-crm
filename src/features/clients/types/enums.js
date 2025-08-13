@@ -453,7 +453,7 @@ export const FILE_LIMITS = {
 };
 
 export const REQUIRED_FIELDS = {
-  STEP_1: ['nome', 'email', 'telefone', 'dataNascimento'], // Dados pessoais essenciais
+  STEP_1: ['nome', 'email', 'telefone'], // Dados pessoais essenciais
   STEP_2: [], // Cônjuge (condicional)
   STEP_3: [], // Dados bancários (opcional)
   STEP_4: ['dataPrimeiroContacto', 'meioPrimeiroContacto'], // Dados de contacto
