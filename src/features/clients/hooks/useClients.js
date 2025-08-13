@@ -1,10 +1,10 @@
 // =========================================
-// 🎣 HOOK PRINCIPAL - useClients CORRIGIDO
+// 🎣 HOOK PRINCIPAL - useClients CORREÇÃO ATÔMICA
 // =========================================
 // Hook principal para gestão de clientes
-// Conecta o Zustand Store com Firebase Services
+// SOLUÇÃO RADICAL: ZERO dependências reativas
 
-import React, { useEffect, useCallback, useMemo, useState, useRef } from 'react';
+import { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/shared/hooks/useAuth';
 import { useClientsStore } from '../stores/clientsStore';
 import clientsService from '../services/clientsService';
@@ -12,15 +12,13 @@ import { PAGINATION } from '../types/enums';
 
 /**
  * Hook principal para gestão de clientes
- * @param {Object} options - Opções de configuração
- * @returns {Object} Estado e ações dos clientes
  */
 export const useClients = (options = {}) => {
   const {
     autoFetch = true,
     fetchOnMount = true,
     enablePolling = false,
-    pollingInterval = 30000, // 30 segundos
+    pollingInterval = 30000,
     limit = PAGINATION.DEFAULT_LIMIT
   } = options;
 
@@ -28,9 +26,11 @@ export const useClients = (options = {}) => {
   const { user } = useAuth();
   const userId = user?.uid || user?.id;
 
-  // ✅ REF para evitar múltiplos fetches
-  const initialFetchDone = useRef(false);
-  const isPollingActive = useRef(false);
+  // ✅ REFS ATÔMICAS - Controle total
+  const userIdRef = useRef(null);
+  const optionsRef = useRef(options);
+  const hasExecutedRef = useRef(new Set()); // Set de userIds já executados
+  const isMountedRef = useRef(true);
 
   // Store state
   const {
@@ -43,72 +43,61 @@ export const useClients = (options = {}) => {
     page,
     total,
     hasMore,
-    
-    // Actions
-    fetchClients,
-    fetchClient,
-    createClient,
-    updateClient,
-    deleteClient,
     setFilters,
     clearFilters,
     setSelectedClient,
     clearSelectedClient,
-    clearError,
-    loadMore,
-    refresh,
-    fetchStats
+    clearError
   } = useClientsStore();
 
   // =========================================
-  // 🔄 FETCH FUNCTIONS
+  // 🔄 ATOMIC FETCH FUNCTIONS
   // =========================================
 
   /**
-   * Buscar clientes com opções
+   * ✅ Fetch clientes - FUNÇÃO COMPLETAMENTE ATÔMICA
    */
-  const handleFetchClients = useCallback(async (fetchOptions = {}) => {
-    if (!userId) {
-      console.log('❌ useClients: userId não encontrado', { user, userId });
+  const fetchClients = useCallback(async (fetchOptions = {}) => {
+    // Usar ref atual sempre
+    const currentUserId = userIdRef.current;
+    
+    if (!currentUserId || !isMountedRef.current) {
       return;
     }
 
     try {
       const { reset = false, customFilters = null } = fetchOptions;
       
-      console.log('🔍 Buscando clientes...', { userId, filters: customFilters || filters });
-      
-      // Conectar store com service
-      const response = await clientsService.getClients(userId, {
+      console.log('🔍 Buscando clientes...', { 
+        userId: currentUserId, 
+        filters: customFilters || filters 
+      });
+
+      const response = await clientsService.getClients(currentUserId, {
         filters: customFilters || filters,
         page: reset ? 1 : page,
         limit
       });
 
-      // Atualizar store através das actions
-      if (reset) {
-        useClientsStore.setState({
-          clients: response.data,
-          page: 1,
-          total: response.total,
-          hasMore: response.hasMore,
-          loading: false,
-          error: null
-        });
-      } else {
-        useClientsStore.setState((state) => ({
-          clients: page === 1 ? response.data : [...state.clients, ...response.data],
-          page: response.page,
-          total: response.total,
-          hasMore: response.hasMore,
-          loading: false,
-          error: null
-        }));
-      }
+      // Verificar se ainda está montado antes de atualizar
+      if (!isMountedRef.current) return;
+
+      useClientsStore.setState({
+        clients: reset ? response.data : 
+                 page === 1 ? response.data : 
+                 [...clients, ...response.data],
+        page: response.page || 1,
+        total: response.total || 0,
+        hasMore: response.hasMore || false,
+        loading: false,
+        error: null
+      });
 
       return response;
 
     } catch (error) {
+      if (!isMountedRef.current) return;
+      
       console.error('❌ Erro ao buscar clientes:', error);
       useClientsStore.setState({
         loading: false,
@@ -116,317 +105,282 @@ export const useClients = (options = {}) => {
       });
       throw error;
     }
-  }, [userId, filters, page, limit]); // ✅ Dependências fixas
+  }, []); // ✅ ZERO DEPENDÊNCIAS - Função imutável
 
   /**
-   * Buscar cliente específico
+   * ✅ Fetch estatísticas - ATÔMICA
    */
-  const handleFetchClient = useCallback(async (clientId) => {
-    if (!userId || !clientId) return null;
+  const fetchStats = useCallback(async () => {
+    const currentUserId = userIdRef.current;
+    if (!currentUserId || !isMountedRef.current) return;
 
     try {
-      useClientsStore.setState({ loading: true, error: null });
-      
-      const client = await clientsService.getClient(userId, clientId);
-      
-      useClientsStore.setState({
-        selectedClient: client,
-        loading: false
-      });
-
-      return client;
-
-    } catch (error) {
-      useClientsStore.setState({
-        loading: false,
-        error: error.message
-      });
-      throw error;
-    }
-  }, [userId]);
-
-  /**
-   * Buscar estatísticas
-   */
-  const handleFetchStats = useCallback(async () => {
-    if (!userId) return;
-
-    try {
-      const statsData = await clientsService.getClientStats(userId);
-      
-      useClientsStore.setState({
-        stats: statsData
-      });
-
+      const statsData = await clientsService.getClientStats(currentUserId);
+      if (isMountedRef.current) {
+        useClientsStore.setState({ stats: statsData });
+      }
       return statsData;
-
     } catch (error) {
       console.error('Erro ao buscar estatísticas:', error);
-      // Não bloquear a interface por erro nas stats
     }
-  }, [userId]);
-
-  // =========================================
-  // 🔨 CRUD OPERATIONS
-  // =========================================
+  }, []); // ✅ ZERO DEPENDÊNCIAS
 
   /**
-   * Criar novo cliente
+   * ✅ Função de inicialização ATÔMICA
    */
-  const handleCreateClient = useCallback(async (clientData) => {
-    console.log('🏗️ handleCreateClient chamado:', { userId, clientData });
+  const initializeForUser = useCallback(() => {
+    const currentUserId = userIdRef.current;
+    const currentOptions = optionsRef.current;
     
-    if (!userId) {
-      const error = new Error('Usuário não autenticado');
-      console.error('❌ Erro de autenticação:', error);
-      throw error;
+    // Verificar se deve executar
+    if (!currentUserId || 
+        !currentOptions.fetchOnMount || 
+        !currentOptions.autoFetch ||
+        hasExecutedRef.current.has(currentUserId) ||
+        !isMountedRef.current) {
+      return;
+    }
+
+    console.log('🚀 useClients: Inicializando para usuário', currentUserId);
+    
+    // Marcar como executado para este usuário
+    hasExecutedRef.current.add(currentUserId);
+    
+    // Executar fetch
+    fetchClients({ reset: true });
+    fetchStats();
+  }, []); // ✅ ZERO DEPENDÊNCIAS
+
+  /**
+   * ✅ Criar cliente - ATÔMICO
+   */
+  const createClient = useCallback(async (clientData) => {
+    const currentUserId = userIdRef.current;
+    
+    console.log('🏗️ useClients: createClient chamado', { 
+      userId: currentUserId, 
+      clientData 
+    });
+    
+    if (!currentUserId) {
+      throw new Error('Usuário não autenticado');
     }
 
     try {
       useClientsStore.setState({ loading: true, error: null });
 
       console.log('📡 Chamando clientsService.createClient...');
-      const newClient = await clientsService.createClient(userId, clientData);
+      const newClient = await clientsService.createClient(currentUserId, clientData);
 
       console.log('✅ Cliente criado com sucesso:', newClient);
 
-      // Atualizar store
-      useClientsStore.setState((state) => ({
-        clients: [newClient, ...state.clients],
-        total: state.total + 1,
-        loading: false
-      }));
+      if (isMountedRef.current) {
+        useClientsStore.setState((state) => ({
+          clients: [newClient, ...state.clients],
+          total: state.total + 1,
+          loading: false
+        }));
 
-      // Atualizar stats
-      handleFetchStats();
+        // Refresh stats
+        fetchStats();
+      }
 
       return newClient;
 
     } catch (error) {
       console.error('❌ Erro ao criar cliente:', error);
-      useClientsStore.setState({
-        loading: false,
-        error: error.message
-      });
+      if (isMountedRef.current) {
+        useClientsStore.setState({
+          loading: false,
+          error: error.message
+        });
+      }
       throw error;
     }
-  }, [userId, handleFetchStats]);
+  }, []); // ✅ ZERO DEPENDÊNCIAS
 
   /**
-   * Atualizar cliente
+   * ✅ Atualizar cliente - ATÔMICO
    */
-  const handleUpdateClient = useCallback(async (clientId, updates) => {
-    if (!userId || !clientId) return null;
+  const updateClient = useCallback(async (clientId, updates) => {
+    const currentUserId = userIdRef.current;
+    
+    if (!currentUserId || !clientId) {
+      throw new Error('Parâmetros inválidos');
+    }
 
     try {
       useClientsStore.setState({ loading: true, error: null });
 
-      const updatedClient = await clientsService.updateClient(userId, clientId, updates);
+      const updatedClient = await clientsService.updateClient(currentUserId, clientId, updates);
 
-      // Atualizar store
-      useClientsStore.setState((state) => ({
-        clients: state.clients.map(client => 
-          client.id === clientId ? updatedClient : client
-        ),
-        selectedClient: state.selectedClient?.id === clientId ? updatedClient : state.selectedClient,
-        loading: false
-      }));
-
-      // Atualizar stats
-      handleFetchStats();
+      if (isMountedRef.current) {
+        useClientsStore.setState((state) => ({
+          clients: state.clients.map(client => 
+            client.id === clientId ? updatedClient : client
+          ),
+          selectedClient: state.selectedClient?.id === clientId ? updatedClient : state.selectedClient,
+          loading: false
+        }));
+      }
 
       return updatedClient;
 
     } catch (error) {
-      useClientsStore.setState({
-        loading: false,
-        error: error.message
-      });
+      if (isMountedRef.current) {
+        useClientsStore.setState({
+          loading: false,
+          error: error.message
+        });
+      }
       throw error;
     }
-  }, [userId, handleFetchStats]);
+  }, []); // ✅ ZERO DEPENDÊNCIAS
 
   /**
-   * Deletar cliente
+   * ✅ Deletar cliente - ATÔMICO
    */
-  const handleDeleteClient = useCallback(async (clientId) => {
-    if (!userId || !clientId) return false;
+  const deleteClient = useCallback(async (clientId) => {
+    const currentUserId = userIdRef.current;
+    
+    if (!currentUserId || !clientId) {
+      throw new Error('Parâmetros inválidos');
+    }
 
     try {
       useClientsStore.setState({ loading: true, error: null });
 
-      await clientsService.deleteClient(userId, clientId);
+      await clientsService.deleteClient(currentUserId, clientId);
 
-      // Atualizar store
-      useClientsStore.setState((state) => ({
-        clients: state.clients.filter(client => client.id !== clientId),
-        selectedClient: state.selectedClient?.id === clientId ? null : state.selectedClient,
-        total: Math.max(0, state.total - 1),
-        loading: false
-      }));
+      if (isMountedRef.current) {
+        useClientsStore.setState((state) => ({
+          clients: state.clients.filter(client => client.id !== clientId),
+          selectedClient: state.selectedClient?.id === clientId ? null : state.selectedClient,
+          total: Math.max(0, state.total - 1),
+          loading: false
+        }));
+      }
 
-      // Atualizar stats
-      handleFetchStats();
-
-      return { success: true };
+      return true;
 
     } catch (error) {
-      useClientsStore.setState({
-        loading: false,
-        error: error.message
-      });
+      if (isMountedRef.current) {
+        useClientsStore.setState({
+          loading: false,
+          error: error.message
+        });
+      }
       throw error;
     }
-  }, [userId, handleFetchStats]);
-
-  // =========================================
-  // 🔍 SEARCH & FILTERS
-  // =========================================
+  }, []); // ✅ ZERO DEPENDÊNCIAS
 
   /**
-   * Aplicar filtros
+   * ✅ Fetch cliente específico - ATÔMICO
    */
+  const fetchClient = useCallback(async (clientId) => {
+    const currentUserId = userIdRef.current;
+    if (!currentUserId || !clientId) return null;
+
+    try {
+      useClientsStore.setState({ loading: true, error: null });
+      
+      const client = await clientsService.getClient(currentUserId, clientId);
+      
+      if (isMountedRef.current) {
+        useClientsStore.setState({
+          selectedClient: client,
+          loading: false
+        });
+      }
+
+      return client;
+
+    } catch (error) {
+      if (isMountedRef.current) {
+        useClientsStore.setState({
+          loading: false,
+          error: error.message
+        });
+      }
+      throw error;
+    }
+  }, []); // ✅ ZERO DEPENDÊNCIAS
+
+  // =========================================
+  // 🔍 FILTERS & PAGINATION - ATÔMICAS
+  // =========================================
+
   const applyFilters = useCallback(async (newFilters) => {
     setFilters(newFilters);
-    await handleFetchClients({ reset: true, customFilters: newFilters });
-  }, [handleFetchClients, setFilters]);
+    await fetchClients({ reset: true, customFilters: newFilters });
+  }, [setFilters, fetchClients]);
 
-  /**
-   * Limpar filtros
-   */
   const resetFilters = useCallback(async () => {
     clearFilters();
-    await handleFetchClients({ reset: true, customFilters: {} });
-  }, [handleFetchClients, clearFilters]);
+    await fetchClients({ reset: true, customFilters: {} });
+  }, [clearFilters, fetchClients]);
 
-  /**
-   * Pesquisar clientes
-   */
-  const searchClients = useCallback(async (searchTerm) => {
-    if (!userId || !searchTerm.trim()) return [];
-
-    try {
-      const response = await clientsService.searchClients(userId, searchTerm, { limit: 20 });
-      return response.data;
-
-    } catch (error) {
-      console.error('Erro na pesquisa:', error);
-      return [];
-    }
-  }, [userId]);
-
-  // =========================================
-  // 📄 PAGINATION
-  // =========================================
-
-  /**
-   * Carregar mais clientes
-   */
-  const handleLoadMore = useCallback(async () => {
+  const loadMore = useCallback(async () => {
     if (!hasMore || loading) return;
-
+    
     try {
       useClientsStore.setState({ loading: true });
-
-      const response = await clientsService.getClients(userId, {
-        filters,
-        page: page + 1,
-        limit
-      });
-
-      useClientsStore.setState((state) => ({
-        clients: [...state.clients, ...response.data],
-        page: response.page,
-        hasMore: response.hasMore,
-        loading: false
-      }));
-
+      await fetchClients({ reset: false });
     } catch (error) {
-      useClientsStore.setState({
-        loading: false,
-        error: error.message
-      });
+      console.error('Erro ao carregar mais:', error);
     }
-  }, [userId, filters, page, limit, hasMore, loading]);
+  }, [hasMore, loading, fetchClients]);
 
-  // =========================================
-  // 🔄 REFRESH & POLLING
-  // =========================================
-
-  /**
-   * Refresh completo
-   */
-  const handleRefresh = useCallback(async () => {
+  const refresh = useCallback(async () => {
     await Promise.all([
-      handleFetchClients({ reset: true }),
-      handleFetchStats()
+      fetchClients({ reset: true }),
+      fetchStats()
     ]);
-  }, [handleFetchClients, handleFetchStats]);
+  }, [fetchClients, fetchStats]);
 
   // =========================================
-  // ⚡ EFFECTS
+  // ⚡ EFFECTS ATÔMICOS - MÁXIMO CONTROLE
   // =========================================
 
-  // ✅ Fetch inicial - CORRIGIDO para evitar loop
+  // ✅ EFFECT 1: Atualizar refs - SEM dependências reativas
   useEffect(() => {
-    if (fetchOnMount && autoFetch && userId && !initialFetchDone.current) {
-      console.log('🚀 useClients: Fetch inicial (ÚNICO)', { userId });
-      initialFetchDone.current = true;
+    userIdRef.current = userId;
+    optionsRef.current = options;
+    
+    // Trigger inicialização quando userId muda
+    if (userId && !hasExecutedRef.current.has(userId)) {
+      // Usar setTimeout para quebrar o ciclo de dependências
+      const timeoutId = setTimeout(() => {
+        initializeForUser();
+      }, 0);
       
-      handleFetchClients({ reset: true });
-      handleFetchStats();
+      return () => clearTimeout(timeoutId);
     }
-  }, [userId]); // ✅ APENAS userId como dependência
+  }, [userId]); // ✅ APENAS userId - não causa loop
 
-  // ✅ Reset inicial fetch flag quando userId muda
+  // ✅ EFFECT 2: Mount/Unmount
   useEffect(() => {
-    if (userId) {
-      initialFetchDone.current = false;
-    }
-  }, [userId]);
-
-  // ✅ Polling (se habilitado) - CORRIGIDO
-  useEffect(() => {
-    if (!enablePolling || !userId || isPollingActive.current) return;
-
-    isPollingActive.current = true;
-    const interval = setInterval(() => {
-      if (userId) {
-        handleRefresh();
-      }
-    }, pollingInterval);
-
+    isMountedRef.current = true;
+    
     return () => {
-      clearInterval(interval);
-      isPollingActive.current = false;
-    };
-  }, [enablePolling, userId, pollingInterval]); // ✅ Dependências fixas
-
-  // ✅ Cleanup on unmount
-  useEffect(() => {
-    return () => {
+      isMountedRef.current = false;
       clearError();
-      initialFetchDone.current = false;
-      isPollingActive.current = false;
     };
-  }, []);
+  }, []); // ✅ Executa apenas uma vez
 
   // =========================================
   // 📊 COMPUTED VALUES
   // =========================================
 
   const computedValues = useMemo(() => ({
-    // Status booleans
     isEmpty: clients.length === 0 && !loading,
     hasClients: clients.length > 0,
     hasError: !!error,
     isFirstPage: page === 1,
     
-    // Filtered counts
     activeClients: clients.filter(c => c.ativo !== false),
     inactiveClients: clients.filter(c => c.ativo === false),
     
-    // Pagination info
     paginationInfo: {
       current: page,
       total: Math.ceil(total / limit),
@@ -436,8 +390,7 @@ export const useClients = (options = {}) => {
       totalItems: total
     },
     
-    // Filter status
-    hasActiveFilters: Object.values(filters).some(filter => {
+    hasActiveFilters: Object.values(filters || {}).some(filter => {
       if (Array.isArray(filter)) return filter.length > 0;
       if (typeof filter === 'string') return filter.trim() !== '';
       return filter !== null && filter !== undefined;
@@ -460,12 +413,12 @@ export const useClients = (options = {}) => {
     error,
     ...computedValues,
     
-    // Actions
-    fetchClients: handleFetchClients,
-    fetchClient: handleFetchClient,
-    createClient: handleCreateClient,
-    updateClient: handleUpdateClient,
-    deleteClient: handleDeleteClient,
+    // Actions - TODAS ATÔMICAS
+    fetchClients,
+    fetchClient,
+    createClient,
+    updateClient,
+    deleteClient,
     
     // Selection
     selectClient: setSelectedClient,
@@ -474,113 +427,16 @@ export const useClients = (options = {}) => {
     // Filters & Search
     applyFilters,
     resetFilters,
-    searchClients,
     
     // Pagination
-    loadMore: handleLoadMore,
+    loadMore,
     
     // Utils
-    refresh: handleRefresh,
+    refresh,
     clearError,
     
     // Stats
-    fetchStats: handleFetchStats
-  };
-};
-
-// =========================================
-// 🎯 SPECIALIZED HOOKS
-// =========================================
-
-/**
- * Hook para cliente específico
- */
-export const useClient = (clientId) => {
-  const { fetchClient, selectedClient, loading, error } = useClients({ 
-    autoFetch: false 
-  });
-
-  const fetchDone = useRef(false);
-
-  useEffect(() => {
-    if (clientId && !fetchDone.current) {
-      fetchDone.current = true;
-      fetchClient(clientId);
-    }
-  }, [clientId]);
-
-  useEffect(() => {
-    fetchDone.current = false;
-  }, [clientId]);
-
-  return {
-    client: selectedClient,
-    loading,
-    error,
-    refetch: () => fetchClient(clientId)
-  };
-};
-
-/**
- * Hook para estatísticas apenas
- */
-export const useClientStats = () => {
-  const { stats, fetchStats, loading } = useClients({ 
-    autoFetch: false 
-  });
-
-  const fetchDone = useRef(false);
-
-  useEffect(() => {
-    if (!fetchDone.current) {
-      fetchDone.current = true;
-      fetchStats();
-    }
-  }, []);
-
-  return {
-    stats,
-    loading,
-    refetch: fetchStats
-  };
-};
-
-/**
- * Hook para lista simples (sem store)
- */
-export const useClientsList = (filters = {}) => {
-  const { user } = useAuth();
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  const fetchClients = useCallback(async () => {
-    const userId = user?.uid || user?.id;
-    if (!userId) return;
-
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const response = await clientsService.getClients(userId, { filters });
-      setClients(response.data);
-      
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.uid, user?.id, JSON.stringify(filters)]); // ✅ Stringify filters
-
-  useEffect(() => {
-    fetchClients();
-  }, [fetchClients]);
-
-  return {
-    clients,
-    loading,
-    error,
-    refetch: fetchClients
+    fetchStats
   };
 };
 
