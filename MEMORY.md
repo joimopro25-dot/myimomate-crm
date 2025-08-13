@@ -1,127 +1,218 @@
-# 🧠 MEMÓRIA DO PROJETO - MyImoMate 2.0
+🧠 MEMÓRIA DO PROJETO - MyImoMate 2.0
+📋 RESUMO EXECUTIVO
+Projeto: MyImoMate 2.0 - CRM Imobiliário Inteligente
+Status: ✅ Estrutura Base Criada | 🚧 Desenvolvendo Módulo Clientes
+Última Atualização: 12 Agosto 2025
+Linguagem: JavaScript (React + Vite + Firebase)
 
-## 📋 RESUMO EXECUTIVO
-**Projeto:** MyImoMate 2.0 - CRM Imobiliário Inteligente  
-**Status:** 🚀 **~90% COMPLETO** - Um passo da perfeição! ✨  
-**Última Atualização:** 12 Agosto 2025 - 22:50  
-**Linguagem:** JavaScript (React + Vite + Firebase)  
-**Filosofia:** Transformar gestão imobiliária numa experiência viciante
+🎯 VISÃO GERAL DO PROJETO
+Objetivo Principal:
+Criar a espinha dorsal escalável de um CRM imobiliário com foco inicial no módulo Clientes super completo.
 
----
+Arquitetura Decidida:
+Frontend: React 18 + Vite + JavaScript
+Styling: TailwindCSS com design system customizado
+Backend: Firebase (Auth + Firestore + Storage)
+Estado: Zustand + React Query
+Formulários: React Hook Form + Zod
+Estrutura: Modular e escalável (max 700 linhas por arquivo)
+🏗️ ESTRUTURA DE MÓDULOS APROVADA
+ESPINHA DORSAL:
+🔐 Authentication System - Login/Register/Session
+📊 Dashboard - Overview e KPIs
+👥 Clientes - Base completa (FOCO ATUAL)
+🎯 Leads - Pipeline básico
+📋 Tarefas - Sistema de tasks
+📅 Calendário - Eventos e lembretes
+PRIORIDADE ATUAL:
+Módulo Clientes com estrutura super completa aprovada.
 
-## 🎯 **VISÃO & MISSÃO (IMUTÁVEL)**
+📂 ESTRUTURA DE PASTAS CRIADA
+src/
+├── app/                    # Configurações gerais da app
+├── features/              # Módulos principais
+│   ├── auth/             # Autenticação
+│   ├── dashboard/        # Dashboard principal
+│   ├── clients/          # 🎯 MÓDULO ATUAL
+│   ├── leads/            # Pipeline de leads
+│   ├── tasks/            # Sistema de tarefas
+│   └── calendar/         # Calendário e eventos
+├── shared/               # Recursos compartilhados
+│   ├── components/       # Componentes reutilizáveis
+│   ├── hooks/            # Custom hooks
+│   ├── services/         # APIs e integrações
+│   ├── utils/            # Funções utilitárias
+│   ├── stores/           # Estados globais
+│   └── types/            # TypeScript definitions
+└── assets/               # Recursos estáticos
+🎯 MÓDULO CLIENTES - ESPECIFICAÇÃO COMPLETA
+DADOS DO CLIENTE (Estrutura Aprovada):
+📋 DADOS PESSOAIS:
+Nome, Morada, Telefone, Email
+Data Nascimento, Naturalidade, Nacionalidade, Residência
+NIF, Contribuinte, Nº Cartão Cidadão
+Estado Civil
+💑 DADOS DO CÔNJUGE (se casado):
+Nome do Cônjuge + todos os dados pessoais
+Comunhão de Bens (geral/separação/adquiridos)
+🏦 DADOS BANCÁRIOS:
+Banco, IBAN, SWIFT
+📄 DOCUMENTOS:
+Upload múltiplo de documentos pessoais
+Categorização e organização
+Preview e download
+📧 CONFIGURAÇÕES DE COMUNICAÇÃO:
+Switch: Enviar emails de aniversário
+Switch: Lembretes de visitas
+Switch: Lembretes de pagamentos
+Switch: Eventos gerais
+🎭 SYSTEM DE ROLES:
+Cliente pode ser (múltiplos roles simultâneos):
 
-### **ESSÊNCIA DO PROJETO:**
-Criar um CRM que **consultores imobiliários ADORAM usar** - intuitivo, inteligente e que transforma dados em insights poderosos. Não é apenas software, é uma **ferramenta que potencia negócios**.
+Investidor
+Comprador
+Vendedor
+Senhorio
+Inquilino
+🤝 DEALS/NEGÓCIOS:
+Cada role pode ter múltiplos negócios
+Histórico de transações
+Status e valores
+📁 ARQUIVOS DO MÓDULO CLIENTES (A CRIAR)
+🗂️ ESTRUTURA DETALHADA:
+src/features/clients/
+├── types/
+│   ├── index.js           # Interfaces principais
+│   └── enums.js          # Enumerações
+├── components/
+│   ├── forms/            # Formulários
+│   ├── cards/            # Cards de cliente
+│   ├── lists/            # Listas e tabelas
+│   └── modals/           # Modais
+├── services/
+│   ├── clientsService.js # CRUD Firebase
+│   └── documentsService.js # Upload docs
+├── hooks/
+│   ├── useClients.js     # Hook principal
+│   ├── useClientForm.js  # Hook formulários
+│   └── useClientDocuments.js # Hook documentos
+├── stores/
+│   └── clientsStore.js   # Estado Zustand
+└── pages/
+    ├── ClientsPage.jsx   # Página principal
+    ├── ClientDetailPage.jsx # Detalhes
+    └── CreateClientPage.jsx # Criar novo
+✅ PROGRESSO ATUAL
+FEITO:
+ Estrutura de pastas completa criada
+ Configurações base (package.json, vite, tailwind)
+ Firebase configurado
+ Aliases de import configurados
+ App.jsx com roteamento básico
+ Especificação completa do módulo Clientes aprovada
+EM ANDAMENTO:
+ 🚧 Criação do módulo Clientes
+PRÓXIMOS PASSOS:
+Types/Interfaces para Clientes
+Zustand Store para gestão de estado
+Firebase Services para CRUD
+Componentes da interface
+Páginas do módulo
+🎨 DESIGN SYSTEM
+CORES APROVADAS:
+Primary: Blue scale (500: #3b82f6)
+Success: Green scale (500: #22c55e)
+Warning: Yellow scale (500: #f59e0b)
+Danger: Red scale (500: #ef4444)
+Gray: Neutral scale
+COMPONENTES BASE:
+Cards com shadow-soft
+Buttons com hover states
+Forms com validação visual
+Modals responsivos
+🔄 METODOLOGIA DE DESENVOLVIMENTO
+PRINCÍPIOS:
+Arquivos pequenos (max 700 linhas)
+Modularidade total
+Reutilização de componentes
+Performance otimizada
+Escalabilidade futura
+STACK TÉCNICO:
+React 18 com hooks modernos
+Zustand para estado global simples
+React Query para cache e sincronização
+React Hook Form para formulários performantes
+Zod para validação de schemas
+Firebase v10 para backend
+📝 DECISÕES ARQUITETURAIS
+Por que JavaScript e não TypeScript?
+Maior agilidade de desenvolvimento
+Menor complexidade inicial
+Equipe mais confortável com JS
+Possível migração futura gradual
+Por que Zustand e não Redux?
+Menos boilerplate
+API mais simples
+Performance nativa
+Melhor para projetos médios
+Por que React Query?
+Cache inteligente
+Sincronização automática
+Estados de loading/error
+Refetch em background
+🚀 ROADMAP FUTURO
+FASE 1: Clientes (ATUAL)
+Módulo completo de clientes
+CRUD + Upload + Roles + Deals
+FASE 2: Core Features
+Dashboard com métricas
+Sistema de autenticação
+Leads básico
+FASE 3: Funcionalidades Avançadas
+Tarefas e calendário
+Relatórios avançados
+Integrações externas
+FASE 4: Otimizações
+Performance improvements
+Mobile responsiveness
+PWA features
+🔗 LINKS IMPORTANTES
+Repo GitHub: [Link do repositório]
+Firebase Console: [Link do projeto Firebase]
+Design System: TailwindCSS customizado
+Documentação: Este arquivo
+📞 CONTATOS E NOTAS
+EQUIPE:
+Desenvolvedor Principal: [Nome]
+Designer: [Nome]
+Product Owner: [Nome]
+REUNIÕES:
+Daily: [Horário]
+Planning: [Horário]
+Review: [Horário]
+🔄 CHANGELOG
+12 Agosto 2025
+✅ Estrutura base criada
+✅ Configurações iniciais
+✅ Especificação do módulo Clientes aprovada
+🚧 Iniciando desenvolvimento do módulo Clientes
+[Data Anterior]
+✅ Definição da arquitetura
+✅ Escolha do stack tecnológico
+✅ Criação do repositório
+🎯 PRÓXIMA SESSÃO
+FOCO:
+Desenvolvimento do módulo Clientes começando pelos Types/Interfaces.
 
-### **PRINCÍPIOS ORIENTADORES:**
-- 🎨 **UX Viciante:** Interface que cativa e motiva uso diário
-- 🧠 **Inteligência Real:** Dados transformados em insights acionáveis  
-- ⚡ **Performance Brutal:** Zero lag, interações fluidas
-- 🔧 **Escalabilidade Total:** Arquitectura preparada para crescer
-- 💎 **Qualidade Premium:** Cada pixel, cada animação importa
-
-### **DESCOBERTA REVELADORA:**
-Após análise exaustiva, o projeto está **dramaticamente mais completo** que a documentação sugeria. A fundação está sólida, os componentes estão implementados - falta apenas o **último toque de genialidade**.
-
----
-
-## 🏗️ **ARQUITECTURA DE EXCELÊNCIA**
-
-### **STACK TECNOLÓGICO PREMIUM:**
-- **Frontend:** React 18 + Vite + JavaScript (Velocidade brutal)
-- **Styling:** TailwindCSS (Design system consistente)
-- **Backend:** Firebase (Escalabilidade infinita)
-- **Estado:** Zustand (Simplicidade elegante)
-- **Formulários:** React Hook Form + Zod (Validação robusta)
-- **Animações:** Framer Motion (Micro-interactions viciantes)
-
-### **QUALIDADE ARQUITECTURAL:**
-- 📁 **Modular:** Max 700 linhas por arquivo
-- 🔄 **Escalável:** Preparado para crescimento
-- ⚡ **Performante:** Otimizado para velocidade
-- 🛡️ **Robusto:** Error handling em toda parte
-
----
-
-## 🎯 **ROADMAP ESTRATÉGICO**
-
-### **MÓDULOS MASTER PLAN:**
-1. 👥 **CLIENTES** - ⚡ **90% IMPLEMENTADO** - Quase perfeição!
-2. 🎯 **LEADS** - Pipeline inteligente *(Fundação criada)*
-3. 📋 **TAREFAS** - Gestão que motiva *(Estrutura preparada)*
-4. 📅 **CALENDÁRIO** - Nunca mais perder oportunidades *(Base sólida)*
-5. 📊 **DASHBOARD** - Central de comando *(Conceito definido)*
-6. 🔐 **AUTH** - Segurança premium *(Mock funcional)*
-
-### **FOCO ACTUAL: Módulo Clientes - A Jóia da Coroa**
-O módulo de clientes está **surpreendentemente avançado**. Descobrimos uma base sólida onde pensávamos haver lacunas. **Um último esforço = perfeição total**.
-
----
-
-## 🔍 **DIAGNÓSTICO REAL DO MÓDULO CLIENTES**
-
-### ✅ **CONQUISTAS ÉPICAS DESCOBERTAS:**
-
-#### **🏗️ FUNDAÇÃO BLINDADA (100%):**
-- Firebase configurado como relógio suíço
-- Services que fazem CRUD parecer arte
-- Store Zustand que é pura poesia
-- Schemas Zod que validam até a alma
-
-#### **🎨 UI QUE IMPRESSIONA (85%):**
-- **ClientsPage:** Dashboard que hipnotiza consultores
-- **ClientsList:** Lista que transforma dados em insights
-- **ClientModal:** 6 tabs de pura funcionalidade
-- **ClientForm:** Formulário que guia sem intimidar
-- **ClientCard:** Visual que comunica instantaneamente
-
-#### **🎣 HOOKS INTELIGENTES (95%):**
-- useClients: O maestro que orquestra tudo
-- useClientForm: Validação que ensina enquanto funciona
-- useClientDocuments: Upload que não dá dores de cabeça
-
----
-
-## ⚠️ **O ÚLTIMO DRAGÃO A VENCER**
-
-### **🔧 clientUtils.js - O Elo Perdido (20% em falta)**
-```javascript
-// AS FUNÇÕES QUE FALTAM PARA A PERFEIÇÃO:
-❌ calculateEngagementScore() // O coração da inteligência
-❌ formatCurrency() // Dinheiro bem apresentado
-❌ isBirthdayToday() // Momentos especiais captados
-❌ hasUrgentActions() // Oportunidades destacadas
-❌ getLastContactDate() // Relacionamento rastreado
-... e mais 10 funções que completam a magia
-```
-
-**IMPACTO:** Estas funções transformam dados brutos em **insights que vendem casas**.
-
----
-
-## 🚀 **PRÓXIMA MISSÃO: Perfeição Total**
-
-### **OBJECTIVO ÚNICO:**
-Implementar as funções auxiliares que transformam o MyImoMate de "muito bom" para **"absolutamente irresistível"**.
-
-### **TEMPO ESTIMADO:** 2-3 horas de foco total
-### **RESULTADO:** CRM que consultores recomendam a colegas
-
----
-
-## 💎 **FILOSOFIA DE DESENVOLVIMENTO**
-
-### **CADA LINHA DE CÓDIGO DEVE:**
-- 🎯 Resolver um problema real de consultores
-- ⚡ Executar mais rápido que o pensamento  
-- 🎨 Ser visualmente deliciosa
-- 🧠 Adicionar inteligência, não complexidade
-- 💝 Fazer o utilizador sorrir
-
-### **NUNCA COMPROMETER:**
-- Performance pela funcionalidade
-- Simplicidade pela sofisticação
-- Qualidade pela velocidade de entrega
-
-**O MyImoMate não é apenas software - é o assistente que todo consultor sonha ter.**
+OBJETIVOS:
+Criar estrutura de dados completa
+Implementar Zustand store
+Desenvolver services Firebase
+Construir primeiros componentes
+ENTREGAS ESPERADAS:
+Types completos para Cliente
+Store funcional
+CRUD básico operacional
+Interface inicial
+📝 Última atualização: 12 Agosto 2025
+🔄 Próxima atualização: Após desenvolvimento do módulo Clientes
