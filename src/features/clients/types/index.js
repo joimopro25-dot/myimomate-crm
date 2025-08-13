@@ -1,8 +1,8 @@
 // =========================================
-// 🎯 TYPES & INTERFACES - MÓDULO CLIENTES
+// 🎯 TYPES & INTERFACES - MÓDULO CLIENTES EXPANDIDO
 // =========================================
 // Definições de tipos para o sistema de clientes
-// Estrutura completa com todos os campos aprovados
+// Estrutura completa com dados expandidos para imobiliário
 
 /**
  * @typedef {Object} DadosPessoais
@@ -18,6 +18,11 @@
  * @property {string} contribuinte - Número de contribuinte
  * @property {string} numCartaoCidadao - Número do cartão de cidadão
  * @property {EstadoCivil} estadoCivil - Estado civil atual
+ * @property {string} profissao - Profissão atual
+ * @property {string} empresa - Nome da empresa onde trabalha
+ * @property {RendimentoAnual} rendimentoAnual - Faixa de rendimento anual
+ * @property {TipoHabitacao} habitacaoAtual - Tipo de habitação onde vive
+ * @property {RegimeHabitacao} regimeHabitacao - Proprietário/Arrendatário/Outro
  */
 
 /**
@@ -32,6 +37,8 @@
  * @property {string} naturalidade - Naturalidade do cônjuge
  * @property {string} nacionalidade - Nacionalidade do cônjuge
  * @property {string} profissao - Profissão do cônjuge
+ * @property {string} empresa - Empresa do cônjuge
+ * @property {RendimentoAnual} rendimentoAnual - Rendimento do cônjuge
  */
 
 /**
@@ -41,6 +48,22 @@
  * @property {string} swift - Código SWIFT (opcional)
  * @property {string} titular - Nome do titular da conta
  * @property {string} morada - Morada do banco
+ * @property {boolean} contaConjunta - Se é conta conjunta
+ * @property {number} capacidadeFinanceira - Capacidade financeira estimada
+ */
+
+/**
+ * @typedef {Object} PerfilImobiliario
+ * @property {OrcamentoFaixa} orcamentoMinimo - Orçamento mínimo
+ * @property {OrcamentoFaixa} orcamentoMaximo - Orçamento máximo
+ * @property {TipoImovel[]} tiposInteresse - Tipos de imóvel de interesse
+ * @property {string[]} zonasPreferidas - Zonas geográficas preferidas
+ * @property {MotivacoesCompra} motivacaoPrincipal - Motivação principal
+ * @property {PrioridadesImovel} prioridades - Prioridades na escolha
+ * @property {UrgenciaCompra} urgencia - Urgência da compra/venda
+ * @property {boolean} precisaFinanciamento - Se precisa de financiamento
+ * @property {number} percentagemEntrada - % para entrada (se financiamento)
+ * @property {boolean} temImovelVenda - Se tem imóvel para vender
  */
 
 /**
@@ -49,102 +72,202 @@
  * @property {string} nome - Nome do arquivo
  * @property {string} tipo - Tipo do documento
  * @property {string} categoria - Categoria (CC, NIF, Comp.Morada, etc.)
- * @property {string} url - URL do arquivo no Firebase Storage
- * @property {number} tamanho - Tamanho do arquivo em bytes
- * @property {Date|string} dataUpload - Data do upload
- * @property {string} uploadedBy - ID do utilizador que fez upload
+ * @property {number} tamanho - Tamanho em bytes
+ * @property {string} url - URL para acesso
+ * @property {Date} uploadedAt - Data do upload
+ * @property {string} uploadedBy - Quem fez upload
+ * @property {boolean} verificado - Se foi verificado
+ * @property {Date} dataExpiracao - Data de expiração (se aplicável)
  */
 
 /**
  * @typedef {Object} ConfiguracoesComunicacao
- * @property {boolean} enviarAniversario - Enviar emails de aniversário
+ * @property {boolean} enviarAniversario - Enviar email de aniversário
  * @property {boolean} lembretesVisitas - Lembretes de visitas
  * @property {boolean} lembretesPagamentos - Lembretes de pagamentos
  * @property {boolean} eventos - Notificações de eventos
- * @property {boolean} marketing - Aceita comunicações de marketing
- * @property {boolean} sms - Aceita SMS
+ * @property {boolean} marketing - Receber material de marketing
+ * @property {boolean} sms - Permitir SMS
+ * @property {boolean} whatsapp - Permitir WhatsApp
  * @property {string} horaPreferida - Hora preferida para contacto
- * @property {string[]} diasPreferidos - Dias da semana preferidos
+ * @property {string[]} diasPreferidos - Dias preferidos para contacto
+ * @property {FrequenciaContacto} frequenciaContacto - Frequência de contacto
+ * @property {MeioContactoPreferido} meioPreferido - Meio de contacto preferido
  */
+
+/**
+ * @typedef {Object} DadosContacto
+ * @property {Date} dataPrimeiroContacto - Data do primeiro contacto
+ * @property {MeioContacto} meioPrimeiroContacto - Como foi o primeiro contacto
+ * @property {Date} dataUltimoContacto - Data do último contacto
+ * @property {number} numeroContactos - Número total de contactos
+ * @property {string} origemContacto - De onde veio o contacto
+ * @property {string} responsavelContacto - Quem fez o primeiro contacto
+ * @property {boolean} clienteAtivo - Se cliente está ativo
+ * @property {TemperaturaCliente} temperatura - Quente/Morno/Frio
+ * @property {number} scoreEngajamento - Score de engajamento (0-100)
+ */
+
+/**
+ * @typedef {Object} Cliente - Estrutura completa do cliente
+ * @property {string} id - ID único do cliente
+ * @property {DadosPessoais} dadosPessoais - Dados pessoais
+ * @property {DadosConjuge} conjuge - Dados do cônjuge (se aplicável)
+ * @property {ComunhaoBens} comunhaoBens - Regime de bens (se casado)
+ * @property {DadosBancarios} dadosBancarios - Dados bancários
+ * @property {PerfilImobiliario} perfilImobiliario - Perfil imobiliário
+ * @property {ConfiguracoesComunicacao} comunicacoes - Preferências comunicação
+ * @property {DadosContacto} dadosContacto - Histórico de contactos
+ * @property {Documento[]} documentos - Documentos anexados
+ * @property {ClientRole[]} roles - Roles do cliente (comprador, vendedor, etc.)
+ * @property {Deal[]} deals - Negócios associados
+ * @property {string} notas - Notas internas
+ * @property {ClientSource} origem - Origem do cliente
+ * @property {string} responsavel - ID do responsável
+ * @property {boolean} ativo - Se cliente está ativo
+ * @property {string} avatar - URL do avatar
+ * @property {Date} createdAt - Data de criação
+ * @property {Date} updatedAt - Data de atualização
+ * @property {Object} metadata - Metadados adicionais
+ */
+
+// =========================================
+// 🎯 ENUMS E CONSTANTES EXPANDIDAS
+// =========================================
+
+/**
+ * @typedef {'solteiro' | 'casado' | 'uniao_facto' | 'divorciado' | 'viuvo' | 'separado'} EstadoCivil
+ */
+
+/**
+ * @typedef {'ate_25k' | '25k_50k' | '50k_75k' | '75k_100k' | '100k_150k' | '150k_plus'} RendimentoAnual
+ */
+
+/**
+ * @typedef {'apartamento' | 'moradia' | 'quarto' | 'estudios' | 'outro'} TipoHabitacao
+ */
+
+/**
+ * @typedef {'proprietario' | 'arrendatario' | 'familiares' | 'outro'} RegimeHabitacao
+ */
+
+/**
+ * @typedef {'ate_100k' | '100k_200k' | '200k_300k' | '300k_500k' | '500k_750k' | '750k_1m' | '1m_plus'} OrcamentoFaixa
+ */
+
+/**
+ * @typedef {'apartamento' | 'moradia' | 'terreno' | 'comercial' | 'industrial' | 'investimento'} TipoImovel
+ */
+
+/**
+ * @typedef {'primeira_habitacao' | 'investimento' | 'mudanca_zona' | 'upgrade_casa' | 'divorcio' | 'heranca' | 'outro'} MotivacoesCompra
+ */
+
+/**
+ * @typedef {'localizacao' | 'preco' | 'tamanho' | 'condicao' | 'transportes' | 'escolas' | 'seguranca'} PrioridadesImovel
+ */
+
+/**
+ * @typedef {'urgente' | 'moderada' | 'flexivel' | 'sem_pressa'} UrgenciaCompra
+ */
+
+/**
+ * @typedef {'email' | 'telefone' | 'sms' | 'whatsapp' | 'presencial'} MeioContactoPreferido
+ */
+
+/**
+ * @typedef {'diaria' | 'semanal' | 'quinzenal' | 'mensal' | 'trimestral' | 'apenas_necessario'} FrequenciaContacto
+ */
+
+/**
+ * @typedef {'telefone' | 'email' | 'whatsapp' | 'sms' | 'presencial' | 'redes_sociais' | 'referencia'} MeioContacto
+ */
+
+/**
+ * @typedef {'quente' | 'morno' | 'frio' | 'inativo'} TemperaturaCliente
+ */
+
+/**
+ * @typedef {'comprador' | 'vendedor' | 'investidor' | 'inquilino' | 'senhorio'} ClientRole
+ */
+
+/**
+ * @typedef {'website' | 'referencia' | 'redes_sociais' | 'publicidade' | 'imoveis_online' | 'contacto_direto' | 'evento' | 'parceiro' | 'recomendacao' | 'outro'} ClientSource
+ */
+
+/**
+ * @typedef {'geral' | 'separacao' | 'adquiridos'} ComunhaoBens
+ */
+
+// =========================================
+// 🏠 NEGÓCIOS E TRANSAÇÕES
+// =========================================
 
 /**
  * @typedef {Object} Deal
  * @property {string} id - ID único do negócio
- * @property {ClientRole} role - Role do cliente neste negócio
- * @property {DealType} tipo - Tipo de negócio
- * @property {DealStatus} status - Status atual
- * @property {string} propriedade - Descrição da propriedade
- * @property {string} moradaPropriedade - Morada da propriedade
+ * @property {string} clienteId - ID do cliente
+ * @property {TipoDeal} tipo - Tipo de negócio
+ * @property {string} imovelId - ID do imóvel (se aplicável)
  * @property {number} valor - Valor do negócio
- * @property {number} comissao - Comissão (%) (opcional)
- * @property {Date|string} dataInicio - Data de início
- * @property {Date|string} dataFim - Data de conclusão (opcional)
- * @property {string} notas - Observações
- * @property {Date|string} createdAt - Data de criação
- * @property {Date|string} updatedAt - Última atualização
+ * @property {StatusDeal} status - Status atual
+ * @property {Date} dataInicio - Data de início
+ * @property {Date} dataFechamento - Data de fechamento (se aplicável)
+ * @property {number} comissao - Valor da comissão
+ * @property {string} responsavel - ID do responsável
+ * @property {string} notas - Notas do negócio
+ * @property {Object[]} historico - Histórico de mudanças
+ * @property {Date} createdAt - Data de criação
+ * @property {Date} updatedAt - Data de atualização
  */
 
 /**
- * @typedef {Object} HistoricoComunicacao
- * @property {string} id - ID único da comunicação
- * @property {CommunicationType} tipo - Tipo de comunicação
- * @property {string} assunto - Assunto/título
- * @property {string} conteudo - Conteúdo da comunicação
- * @property {Date|string} data - Data da comunicação
- * @property {string} responsavel - Quem fez a comunicação
- * @property {boolean} lida - Se foi lida pelo cliente
- * @property {string[]} anexos - URLs de anexos (opcional)
+ * @typedef {'compra' | 'venda' | 'arrendamento' | 'consultoria' | 'avaliacao'} TipoDeal
  */
 
 /**
- * @typedef {Object} Cliente
- * @property {string} id - ID único do cliente
- * @property {DadosPessoais} dadosPessoais - Dados pessoais completos
- * @property {DadosConjuge|null} conjuge - Dados do cônjuge (se casado)
- * @property {ComunhaoBens|null} comunhaoBens - Regime de bens (se casado)
- * @property {DadosBancarios} dadosBancarios - Informações bancárias
- * @property {Documento[]} documentos - Lista de documentos
- * @property {ConfiguracoesComunicacao} comunicacoes - Preferências
- * @property {ClientRole[]} roles - Roles do cliente (múltiplos)
- * @property {Deal[]} deals - Negócios do cliente
- * @property {HistoricoComunicacao[]} historicoComunicacao - Histórico
- * @property {string} avatar - URL da foto (opcional)
- * @property {string} notas - Observações gerais
- * @property {boolean} ativo - Se o cliente está ativo
- * @property {ClientSource} origem - Como chegou até nós
- * @property {string} responsavel - Consultor responsável
- * @property {Date|string} createdAt - Data de criação
- * @property {Date|string} updatedAt - Última atualização
- * @property {string} createdBy - ID do utilizador que criou
- * @property {string} updatedBy - ID do último utilizador que atualizou
+ * @typedef {'prospecto' | 'qualificado' | 'proposta' | 'negociacao' | 'fechado' | 'cancelado'} StatusDeal
  */
+
+// =========================================
+// 📊 ESTATÍSTICAS E FILTROS
+// =========================================
 
 /**
  * @typedef {Object} ClientFilters
- * @property {string} search - Pesquisa por nome/email/telefone
+ * @property {string} search - Termo de busca
  * @property {ClientRole[]} roles - Filtro por roles
  * @property {EstadoCivil[]} estadoCivil - Filtro por estado civil
- * @property {boolean} ativo - Filtro por status ativo
- * @property {string} responsavel - Filtro por consultor
- * @property {Date|string} dataInicio - Data criação início
- * @property {Date|string} dataFim - Data criação fim
+ * @property {RendimentoAnual[]} rendimento - Filtro por rendimento
  * @property {ClientSource[]} origem - Filtro por origem
- * @property {boolean} temDeals - Se tem negócios ativos
- * @property {DealStatus[]} statusDeals - Status dos negócios
+ * @property {TemperaturaCliente[]} temperatura - Filtro por temperatura
+ * @property {boolean} ativo - Apenas ativos
+ * @property {Date} dataInicioContacto - Data início para filtro
+ * @property {Date} dataFimContacto - Data fim para filtro
+ * @property {string} responsavel - Filtro por responsável
+ * @property {OrcamentoFaixa[]} orcamento - Filtro por orçamento
+ * @property {TipoImovel[]} tiposInteresse - Filtro por tipos de interesse
  */
 
 /**
  * @typedef {Object} ClientStats
  * @property {number} total - Total de clientes
  * @property {number} ativos - Clientes ativos
- * @property {number} inativos - Clientes inativos
  * @property {number} novosEsteMes - Novos este mês
+ * @property {number} birthdayToday - Aniversários hoje
+ * @property {number} urgentActions - Ações urgentes
+ * @property {number} hotClients - Clientes quentes
+ * @property {number} coldClients - Clientes frios
  * @property {Object} porRole - Estatísticas por role
- * @property {Object} porEstadoCivil - Por estado civil
- * @property {Object} porOrigem - Por origem
+ * @property {Object} porOrigem - Estatísticas por origem
+ * @property {Object} porTemperatura - Estatísticas por temperatura
+ * @property {Object} porRendimento - Estatísticas por rendimento
  * @property {number} totalDeals - Total de negócios
  * @property {number} dealsAtivos - Negócios ativos
  * @property {number} valorTotalDeals - Valor total dos negócios
+ * @property {number} comissaoTotal - Comissão total
+ * @property {number} ticketMedio - Ticket médio
+ * @property {number} tempoMedioFechamento - Tempo médio fechamento (dias)
  */
 
 // =========================================
@@ -157,7 +280,9 @@
  * @property {DadosConjuge} conjuge
  * @property {ComunhaoBens} comunhaoBens
  * @property {DadosBancarios} dadosBancarios
+ * @property {PerfilImobiliario} perfilImobiliario
  * @property {ConfiguracoesComunicacao} comunicacoes
+ * @property {DadosContacto} dadosContacto
  * @property {ClientRole[]} roles
  * @property {string} notas
  * @property {ClientSource} origem
@@ -165,10 +290,12 @@
 
 /**
  * @typedef {Object} ClientFormStep
- * @property {number} step - Número do passo atual
+ * @property {number} step - Número do passo atual (1-6)
  * @property {boolean} isValid - Se o passo está válido
  * @property {Object} errors - Erros de validação
  * @property {boolean} touched - Se foi tocado pelo utilizador
+ * @property {string} title - Título do passo
+ * @property {string} description - Descrição do passo
  */
 
 // =========================================
@@ -183,6 +310,7 @@
  * @property {number} limit - Limite por página
  * @property {boolean} hasNext - Se há próxima página
  * @property {boolean} hasPrev - Se há página anterior
+ * @property {ClientStats} stats - Estatísticas dos resultados
  */
 
 /**
@@ -190,6 +318,7 @@
  * @property {Cliente} data - Dados do cliente
  * @property {boolean} success - Se foi sucesso
  * @property {string} message - Mensagem de resposta
+ * @property {ClientStats} relatedStats - Estatísticas relacionadas
  */
 
 /**
@@ -198,69 +327,39 @@
  * @property {string} fileName - Nome do arquivo
  * @property {number} size - Tamanho em bytes
  * @property {boolean} success - Se foi sucesso
+ * @property {string} category - Categoria do documento
  */
 
 // =========================================
-// 🎯 STORE TYPES (ZUSTAND)
-// =========================================
-
-/**
- * @typedef {Object} ClientsStore
- * @property {Cliente[]} clients - Lista de clientes
- * @property {Cliente|null} selectedClient - Cliente selecionado
- * @property {ClientFilters} filters - Filtros aplicados
- * @property {ClientStats} stats - Estatísticas
- * @property {boolean} loading - Estado de carregamento
- * @property {string|null} error - Mensagem de erro
- * @property {number} page - Página atual
- * @property {number} limit - Limite por página
- * @property {number} total - Total de registos
- * 
- * @property {Function} fetchClients - Buscar clientes
- * @property {Function} fetchClient - Buscar cliente específico
- * @property {Function} createClient - Criar novo cliente
- * @property {Function} updateClient - Atualizar cliente
- * @property {Function} deleteClient - Deletar cliente
- * @property {Function} setFilters - Definir filtros
- * @property {Function} clearFilters - Limpar filtros
- * @property {Function} setSelectedClient - Selecionar cliente
- * @property {Function} clearError - Limpar erro
- * @property {Function} fetchStats - Buscar estatísticas
- */
-
-// =========================================
-// 🎯 HOOK TYPES
+// 🎯 HOOKS TYPES
 // =========================================
 
 /**
  * @typedef {Object} UseClientsReturn
- * @property {Cliente[]} clients
- * @property {boolean} loading
- * @property {string|null} error
- * @property {Function} refetch
- * @property {Function} loadMore
- * @property {boolean} hasMore
+ * @property {Cliente[]} clients - Lista de clientes
+ * @property {boolean} loading - Estado de carregamento
+ * @property {string|null} error - Mensagem de erro
+ * @property {ClientStats} stats - Estatísticas
+ * @property {Function} refetch - Função para recarregar
+ * @property {Function} loadMore - Carregar mais clientes
+ * @property {boolean} hasMore - Se há mais clientes
+ * @property {Function} createClient - Criar novo cliente
+ * @property {Function} updateClient - Atualizar cliente
+ * @property {Function} deleteClient - Deletar cliente
  */
 
 /**
  * @typedef {Object} UseClientFormReturn
- * @property {Object} formData
- * @property {Function} updateFormData
- * @property {Function} validateStep
- * @property {Function} submitForm
- * @property {boolean} isValid
- * @property {Object} errors
- * @property {boolean} isSubmitting
- */
-
-/**
- * @typedef {Object} UseClientDocumentsReturn
- * @property {Documento[]} documents
- * @property {Function} uploadDocument
- * @property {Function} deleteDocument
- * @property {boolean} uploading
- * @property {number} uploadProgress
- * @property {string|null} uploadError
+ * @property {number} currentStep - Passo atual (1-6)
+ * @property {ClientFormData} formData - Dados do formulário
+ * @property {Object} errors - Erros de validação
+ * @property {boolean} isSubmitting - Se está submetendo
+ * @property {Function} nextStep - Ir para próximo passo
+ * @property {Function} prevStep - Voltar passo anterior
+ * @property {Function} submitForm - Submeter formulário
+ * @property {Function} updateField - Atualizar campo específico
+ * @property {number} progressPercentage - Progresso em %
+ * @property {boolean} isValid - Se formulário está válido
  */
 
 export {

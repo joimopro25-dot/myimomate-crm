@@ -1,235 +1,318 @@
-// src/features/clients/types/enums.js
-// 🔧 CORREÇÃO DE EXPORTS - PROBLEMA CONSOLE RESOLVIDO
+// =========================================
+// 🎯 ENUMS & CONSTANTES - MÓDULO CLIENTES EXPANDIDO
+// =========================================
+// Todas as enumerações e constantes para o sistema de clientes
+// Estrutura completa para CRM imobiliário profissional
 
 // =========================================
-// 🏷️ ESTADO CIVIL
+// 👤 DADOS PESSOAIS E FAMILIARES
 // =========================================
+
 export const EstadoCivil = {
   SOLTEIRO: 'solteiro',
   CASADO: 'casado',
+  UNIAO_FACTO: 'uniao_facto',
   DIVORCIADO: 'divorciado',
   VIUVO: 'viuvo',
-  UNIAO_FACTO: 'uniao_facto',
   SEPARADO: 'separado'
 };
 
 export const EstadoCivilLabels = {
   [EstadoCivil.SOLTEIRO]: 'Solteiro(a)',
   [EstadoCivil.CASADO]: 'Casado(a)',
+  [EstadoCivil.UNIAO_FACTO]: 'União de Facto',
   [EstadoCivil.DIVORCIADO]: 'Divorciado(a)',
   [EstadoCivil.VIUVO]: 'Viúvo(a)',
-  [EstadoCivil.UNIAO_FACTO]: 'União de Facto',
   [EstadoCivil.SEPARADO]: 'Separado(a)'
 };
 
-// 🔧 EXPORT LEGACY para compatibilidade
-export const ESTADOS_CIVIS = Object.entries(EstadoCivilLabels).map(([value, label]) => ({
-  value,
-  label
-}));
-
-// =========================================
-// 👥 ROLES DO CLIENTE
-// =========================================
-export const ClientRole = {
-  INVESTIDOR: 'investidor',
-  COMPRADOR: 'comprador',
-  VENDEDOR: 'vendedor',
-  SENHORIO: 'senhorio',
-  INQUILINO: 'inquilino',
-  PROMOTOR: 'promotor',
-  INTERMEDIARIO: 'intermediario'
-};
-
-export const ClientRoleLabels = {
-  [ClientRole.INVESTIDOR]: 'Investidor',
-  [ClientRole.COMPRADOR]: 'Comprador',
-  [ClientRole.VENDEDOR]: 'Vendedor',
-  [ClientRole.SENHORIO]: 'Senhorio',
-  [ClientRole.INQUILINO]: 'Inquilino',
-  [ClientRole.PROMOTOR]: 'Promotor',
-  [ClientRole.INTERMEDIARIO]: 'Intermediário'
-};
-
-export const ClientRoleColors = {
-  [ClientRole.INVESTIDOR]: 'bg-purple-100 text-purple-800',
-  [ClientRole.COMPRADOR]: 'bg-green-100 text-green-800',
-  [ClientRole.VENDEDOR]: 'bg-blue-100 text-blue-800',
-  [ClientRole.SENHORIO]: 'bg-yellow-100 text-yellow-800',
-  [ClientRole.INQUILINO]: 'bg-orange-100 text-orange-800',
-  [ClientRole.PROMOTOR]: 'bg-red-100 text-red-800',
-  [ClientRole.INTERMEDIARIO]: 'bg-gray-100 text-gray-800'
-};
-
-// =========================================
-// 💍 COMUNHÃO DE BENS
-// =========================================
 export const ComunhaoBens = {
-  COMUNHAO_GERAL: 'comunhao_geral',
-  SEPARACAO_BENS: 'separacao_bens',
-  COMUNHAO_ADQUIRIDOS: 'comunhao_adquiridos',
-  REGIME_MISTO: 'regime_misto'
+  GERAL: 'geral',
+  SEPARACAO: 'separacao',
+  ADQUIRIDOS: 'adquiridos'
 };
 
 export const ComunhaoBensLabels = {
-  [ComunhaoBens.COMUNHAO_GERAL]: 'Comunhão Geral de Bens',
-  [ComunhaoBens.SEPARACAO_BENS]: 'Separação de Bens',
-  [ComunhaoBens.COMUNHAO_ADQUIRIDOS]: 'Comunhão de Adquiridos',
-  [ComunhaoBens.REGIME_MISTO]: 'Regime Misto'
+  [ComunhaoBens.GERAL]: 'Comunhão Geral',
+  [ComunhaoBens.SEPARACAO]: 'Separação de Bens',
+  [ComunhaoBens.ADQUIRIDOS]: 'Comunhão de Adquiridos'
+};
+
+// Estados que requerem dados do cônjuge
+export const ESTADOS_COM_CONJUGE = [
+  EstadoCivil.CASADO,
+  EstadoCivil.UNIAO_FACTO
+];
+
+// =========================================
+// 💰 DADOS FINANCEIROS
+// =========================================
+
+export const RendimentoAnual = {
+  ATE_25K: 'ate_25k',
+  R25K_50K: '25k_50k',
+  R50K_75K: '50k_75k',
+  R75K_100K: '75k_100k',
+  R100K_150K: '100k_150k',
+  R150K_PLUS: '150k_plus'
+};
+
+export const RendimentoAnualLabels = {
+  [RendimentoAnual.ATE_25K]: 'Até 25.000€',
+  [RendimentoAnual.R25K_50K]: '25.000€ - 50.000€',
+  [RendimentoAnual.R50K_75K]: '50.000€ - 75.000€',
+  [RendimentoAnual.R75K_100K]: '75.000€ - 100.000€',
+  [RendimentoAnual.R100K_150K]: '100.000€ - 150.000€',
+  [RendimentoAnual.R150K_PLUS]: 'Mais de 150.000€'
+};
+
+export const OrcamentoFaixa = {
+  ATE_100K: 'ate_100k',
+  O100K_200K: '100k_200k',
+  O200K_300K: '200k_300k',
+  O300K_500K: '300k_500k',
+  O500K_750K: '500k_750k',
+  O750K_1M: '750k_1m',
+  O1M_PLUS: '1m_plus'
+};
+
+export const OrcamentoFaixaLabels = {
+  [OrcamentoFaixa.ATE_100K]: 'Até 100.000€',
+  [OrcamentoFaixa.O100K_200K]: '100.000€ - 200.000€',
+  [OrcamentoFaixa.O200K_300K]: '200.000€ - 300.000€',
+  [OrcamentoFaixa.O300K_500K]: '300.000€ - 500.000€',
+  [OrcamentoFaixa.O500K_750K]: '500.000€ - 750.000€',
+  [OrcamentoFaixa.O750K_1M]: '750.000€ - 1.000.000€',
+  [OrcamentoFaixa.O1M_PLUS]: 'Mais de 1.000.000€'
 };
 
 // =========================================
-// 🤝 TIPOS DE NEGÓCIO
+// 🏠 HABITAÇÃO E IMÓVEIS
 // =========================================
-export const DealType = {
-  COMPRA: 'compra',
-  VENDA: 'venda',
-  ARRENDAMENTO: 'arrendamento',
+
+export const TipoHabitacao = {
+  APARTAMENTO: 'apartamento',
+  MORADIA: 'moradia',
+  QUARTO: 'quarto',
+  ESTUDIO: 'estudio',
+  OUTRO: 'outro'
+};
+
+export const TipoHabitacaoLabels = {
+  [TipoHabitacao.APARTAMENTO]: 'Apartamento',
+  [TipoHabitacao.MORADIA]: 'Moradia',
+  [TipoHabitacao.QUARTO]: 'Quarto',
+  [TipoHabitacao.ESTUDIO]: 'Estúdio',
+  [TipoHabitacao.OUTRO]: 'Outro'
+};
+
+export const RegimeHabitacao = {
+  PROPRIETARIO: 'proprietario',
+  ARRENDATARIO: 'arrendatario',
+  FAMILIARES: 'familiares',
+  OUTRO: 'outro'
+};
+
+export const RegimeHabitacaoLabels = {
+  [RegimeHabitacao.PROPRIETARIO]: 'Proprietário',
+  [RegimeHabitacao.ARRENDATARIO]: 'Arrendatário',
+  [RegimeHabitacao.FAMILIARES]: 'Casa de Familiares',
+  [RegimeHabitacao.OUTRO]: 'Outro'
+};
+
+export const TipoImovel = {
+  APARTAMENTO: 'apartamento',
+  MORADIA: 'moradia',
+  TERRENO: 'terreno',
+  COMERCIAL: 'comercial',
+  INDUSTRIAL: 'industrial',
+  INVESTIMENTO: 'investimento'
+};
+
+export const TipoImovelLabels = {
+  [TipoImovel.APARTAMENTO]: 'Apartamento',
+  [TipoImovel.MORADIA]: 'Moradia',
+  [TipoImovel.TERRENO]: 'Terreno',
+  [TipoImovel.COMERCIAL]: 'Espaço Comercial',
+  [TipoImovel.INDUSTRIAL]: 'Espaço Industrial',
+  [TipoImovel.INVESTIMENTO]: 'Investimento'
+};
+
+// =========================================
+// 🎯 MOTIVAÇÕES E PRIORIDADES
+// =========================================
+
+export const MotivacoesCompra = {
+  PRIMEIRA_HABITACAO: 'primeira_habitacao',
   INVESTIMENTO: 'investimento',
-  PERMUTA: 'permuta',
-  AVALIACAO: 'avaliacao',
-  CONSULTORIA: 'consultoria'
+  MUDANCA_ZONA: 'mudanca_zona',
+  UPGRADE_CASA: 'upgrade_casa',
+  DIVORCIO: 'divorcio',
+  HERANCA: 'heranca',
+  FAMILIA_CRESCEU: 'familia_cresceu',
+  TRABALHO: 'trabalho',
+  OUTRO: 'outro'
 };
 
-export const DealTypeLabels = {
-  [DealType.COMPRA]: 'Compra',
-  [DealType.VENDA]: 'Venda',
-  [DealType.ARRENDAMENTO]: 'Arrendamento',
-  [DealType.INVESTIMENTO]: 'Investimento',
-  [DealType.PERMUTA]: 'Permuta',
-  [DealType.AVALIACAO]: 'Avaliação',
-  [DealType.CONSULTORIA]: 'Consultoria'
+export const MotivacoesCompraLabels = {
+  [MotivacoesCompra.PRIMEIRA_HABITACAO]: 'Primeira Habitação',
+  [MotivacoesCompra.INVESTIMENTO]: 'Investimento',
+  [MotivacoesCompra.MUDANCA_ZONA]: 'Mudança de Zona',
+  [MotivacoesCompra.UPGRADE_CASA]: 'Casa Maior/Melhor',
+  [MotivacoesCompra.DIVORCIO]: 'Divórcio/Separação',
+  [MotivacoesCompra.HERANCA]: 'Herança',
+  [MotivacoesCompra.FAMILIA_CRESCEU]: 'Família Cresceu',
+  [MotivacoesCompra.TRABALHO]: 'Mudança de Trabalho',
+  [MotivacoesCompra.OUTRO]: 'Outro'
 };
 
-// =========================================
-// 📊 STATUS DOS NEGÓCIOS
-// =========================================
-export const DealStatus = {
-  PROSPECTO: 'prospecto',
-  QUALIFICADO: 'qualificado',
-  EM_NEGOCIACAO: 'em_negociacao',
-  PROPOSTA_ENVIADA: 'proposta_enviada',
-  PROPOSTA_ACEITE: 'proposta_aceite',
-  CPCV_ASSINADO: 'cpcv_assinado',
-  ESCRITURA_AGENDADA: 'escritura_agendada',
-  CONCLUIDO: 'concluido',
-  CANCELADO: 'cancelado',
-  SUSPENSO: 'suspenso',
-  PROCURA_ATIVA: 'procura_ativa',
-  VISITAS_AGENDADAS: 'visitas_agendadas',
-  FINANCIAMENTO_PENDENTE: 'financiamento_pendente',
-  FINANCIAMENTO_APROVADO: 'financiamento_aprovado',
-  AVALIACAO_PENDENTE: 'avaliacao_pendente',
-  CMI_ASSINADO: 'cmi_assinado',
-  MARKETING_ATIVO: 'marketing_ativo',
-  VISITAS_MARCADAS: 'visitas_marcadas',
-  CONTRATO_ASSINADO: 'contrato_assinado',
-  CAUÇÃO_PAGA: 'caucao_paga'
+export const PrioridadesImovel = {
+  LOCALIZACAO: 'localizacao',
+  PRECO: 'preco',
+  TAMANHO: 'tamanho',
+  CONDICAO: 'condicao',
+  TRANSPORTES: 'transportes',
+  ESCOLAS: 'escolas',
+  SEGURANCA: 'seguranca',
+  COMERCIOS: 'comercios',
+  ESTACIONAMENTO: 'estacionamento'
 };
 
-export const DealStatusLabels = {
-  [DealStatus.PROSPECTO]: 'Prospeto',
-  [DealStatus.QUALIFICADO]: 'Qualificado',
-  [DealStatus.EM_NEGOCIACAO]: 'Em Negociação',
-  [DealStatus.PROPOSTA_ENVIADA]: 'Proposta Enviada',
-  [DealStatus.PROPOSTA_ACEITE]: 'Proposta Aceite',
-  [DealStatus.CPCV_ASSINADO]: 'CPCV Assinado',
-  [DealStatus.ESCRITURA_AGENDADA]: 'Escritura Agendada',
-  [DealStatus.CONCLUIDO]: 'Concluído',
-  [DealStatus.CANCELADO]: 'Cancelado',
-  [DealStatus.SUSPENSO]: 'Suspenso',
-  [DealStatus.PROCURA_ATIVA]: 'Procura Ativa',
-  [DealStatus.VISITAS_AGENDADAS]: 'Visitas Agendadas',
-  [DealStatus.FINANCIAMENTO_PENDENTE]: 'Financiamento Pendente',
-  [DealStatus.FINANCIAMENTO_APROVADO]: 'Financiamento Aprovado',
-  [DealStatus.AVALIACAO_PENDENTE]: 'Avaliação Pendente',
-  [DealStatus.CMI_ASSINADO]: 'CMI Assinado',
-  [DealStatus.MARKETING_ATIVO]: 'Marketing Ativo',
-  [DealStatus.VISITAS_MARCADAS]: 'Visitas Marcadas',
-  [DealStatus.CONTRATO_ASSINADO]: 'Contrato Assinado',
-  [DealStatus.CAUÇÃO_PAGA]: 'Caução Paga'
+export const PrioridadesImovelLabels = {
+  [PrioridadesImovel.LOCALIZACAO]: 'Localização',
+  [PrioridadesImovel.PRECO]: 'Preço',
+  [PrioridadesImovel.TAMANHO]: 'Tamanho',
+  [PrioridadesImovel.CONDICAO]: 'Condição do Imóvel',
+  [PrioridadesImovel.TRANSPORTES]: 'Transportes Públicos',
+  [PrioridadesImovel.ESCOLAS]: 'Proximidade a Escolas',
+  [PrioridadesImovel.SEGURANCA]: 'Segurança da Zona',
+  [PrioridadesImovel.COMERCIOS]: 'Comércio Local',
+  [PrioridadesImovel.ESTACIONAMENTO]: 'Estacionamento'
 };
 
-export const DealStatusColors = {
-  [DealStatus.PROSPECTO]: 'bg-gray-100 text-gray-800',
-  [DealStatus.QUALIFICADO]: 'bg-blue-100 text-blue-800',
-  [DealStatus.EM_NEGOCIACAO]: 'bg-yellow-100 text-yellow-800',
-  [DealStatus.PROPOSTA_ENVIADA]: 'bg-orange-100 text-orange-800',
-  [DealStatus.PROPOSTA_ACEITE]: 'bg-green-100 text-green-800',
-  [DealStatus.CPCV_ASSINADO]: 'bg-green-200 text-green-900',
-  [DealStatus.ESCRITURA_AGENDADA]: 'bg-emerald-100 text-emerald-800',
-  [DealStatus.CONCLUIDO]: 'bg-emerald-200 text-emerald-900',
-  [DealStatus.CANCELADO]: 'bg-red-100 text-red-800',
-  [DealStatus.SUSPENSO]: 'bg-gray-200 text-gray-700',
-  [DealStatus.PROCURA_ATIVA]: 'bg-blue-100 text-blue-800',
-  [DealStatus.VISITAS_AGENDADAS]: 'bg-purple-100 text-purple-800',
-  [DealStatus.FINANCIAMENTO_PENDENTE]: 'bg-yellow-100 text-yellow-800',
-  [DealStatus.FINANCIAMENTO_APROVADO]: 'bg-green-100 text-green-800',
-  [DealStatus.AVALIACAO_PENDENTE]: 'bg-orange-100 text-orange-800',
-  [DealStatus.CMI_ASSINADO]: 'bg-blue-100 text-blue-800',
-  [DealStatus.MARKETING_ATIVO]: 'bg-purple-100 text-purple-800',
-  [DealStatus.VISITAS_MARCADAS]: 'bg-indigo-100 text-indigo-800',
-  [DealStatus.CONTRATO_ASSINADO]: 'bg-green-100 text-green-800',
-  [DealStatus.CAUÇÃO_PAGA]: 'bg-emerald-100 text-emerald-800'
+export const UrgenciaCompra = {
+  URGENTE: 'urgente',
+  MODERADA: 'moderada', 
+  FLEXIVEL: 'flexivel',
+  SEM_PRESSA: 'sem_pressa'
+};
+
+export const UrgenciaCompraLabels = {
+  [UrgenciaCompra.URGENTE]: 'Urgente (< 3 meses)',
+  [UrgenciaCompra.MODERADA]: 'Moderada (3-6 meses)',
+  [UrgenciaCompra.FLEXIVEL]: 'Flexível (6-12 meses)',
+  [UrgenciaCompra.SEM_PRESSA]: 'Sem Pressa (> 1 ano)'
 };
 
 // =========================================
-// 📱 TIPOS DE COMUNICAÇÃO
+// 📞 COMUNICAÇÃO E CONTACTOS
 // =========================================
-export const CommunicationType = {
+
+export const MeioContactoPreferido = {
   EMAIL: 'email',
   TELEFONE: 'telefone',
   SMS: 'sms',
   WHATSAPP: 'whatsapp',
+  PRESENCIAL: 'presencial'
+};
+
+export const MeioContactoPreferidoLabels = {
+  [MeioContactoPreferido.EMAIL]: 'Email',
+  [MeioContactoPreferido.TELEFONE]: 'Telefone',
+  [MeioContactoPreferido.SMS]: 'SMS',
+  [MeioContactoPreferido.WHATSAPP]: 'WhatsApp',
+  [MeioContactoPreferido.PRESENCIAL]: 'Presencial'
+};
+
+export const FrequenciaContacto = {
+  DIARIA: 'diaria',
+  SEMANAL: 'semanal',
+  QUINZENAL: 'quinzenal',
+  MENSAL: 'mensal',
+  TRIMESTRAL: 'trimestral',
+  APENAS_NECESSARIO: 'apenas_necessario'
+};
+
+export const FrequenciaContactoLabels = {
+  [FrequenciaContacto.DIARIA]: 'Diária',
+  [FrequenciaContacto.SEMANAL]: 'Semanal',
+  [FrequenciaContacto.QUINZENAL]: 'Quinzenal',
+  [FrequenciaContacto.MENSAL]: 'Mensal',
+  [FrequenciaContacto.TRIMESTRAL]: 'Trimestral',
+  [FrequenciaContacto.APENAS_NECESSARIO]: 'Apenas Quando Necessário'
+};
+
+export const MeioContacto = {
+  TELEFONE: 'telefone',
+  EMAIL: 'email',
+  WHATSAPP: 'whatsapp',
+  SMS: 'sms',
   PRESENCIAL: 'presencial',
-  VIDEOCHAMADA: 'videochamada',
-  CARTA: 'carta',
-  NOTA: 'nota'
+  REDES_SOCIAIS: 'redes_sociais',
+  REFERENCIA: 'referencia',
+  WEBSITE: 'website'
 };
 
-export const CommunicationTypeLabels = {
-  [CommunicationType.EMAIL]: 'Email',
-  [CommunicationType.TELEFONE]: 'Telefone',
-  [CommunicationType.SMS]: 'SMS',
-  [CommunicationType.WHATSAPP]: 'WhatsApp',
-  [CommunicationType.PRESENCIAL]: 'Presencial',
-  [CommunicationType.VIDEOCHAMADA]: 'Videochamada',
-  [CommunicationType.CARTA]: 'Carta',
-  [CommunicationType.NOTA]: 'Nota'
+export const MeioContactoLabels = {
+  [MeioContacto.TELEFONE]: 'Telefone',
+  [MeioContacto.EMAIL]: 'Email',
+  [MeioContacto.WHATSAPP]: 'WhatsApp',
+  [MeioContacto.SMS]: 'SMS',
+  [MeioContacto.PRESENCIAL]: 'Presencial',
+  [MeioContacto.REDES_SOCIAIS]: 'Redes Sociais',
+  [MeioContacto.REFERENCIA]: 'Referência',
+  [MeioContacto.WEBSITE]: 'Website'
+};
+
+export const TemperaturaCliente = {
+  QUENTE: 'quente',
+  MORNO: 'morno',
+  FRIO: 'frio',
+  INATIVO: 'inativo'
+};
+
+export const TemperaturaClienteLabels = {
+  [TemperaturaCliente.QUENTE]: 'Quente',
+  [TemperaturaCliente.MORNO]: 'Morno',
+  [TemperaturaCliente.FRIO]: 'Frio',
+  [TemperaturaCliente.INATIVO]: 'Inativo'
+};
+
+export const TemperaturaClienteColors = {
+  [TemperaturaCliente.QUENTE]: 'red',
+  [TemperaturaCliente.MORNO]: 'orange',
+  [TemperaturaCliente.FRIO]: 'blue',
+  [TemperaturaCliente.INATIVO]: 'gray'
 };
 
 // =========================================
-// 📄 CATEGORIAS DE DOCUMENTOS
+// 🎭 ROLES E ORIGENS
 // =========================================
-export const DocumentCategory = {
-  IDENTIFICACAO: 'identificacao',
-  COMPROVATIVO_MORADA: 'comprovativo_morada',
-  COMPROVATIVO_RENDIMENTOS: 'comprovativo_rendimentos',
-  DOCUMENTOS_BANCARIOS: 'documentos_bancarios',
-  PROPRIEDADES: 'propriedades',
-  CONTRATOS: 'contratos',
-  OUTROS: 'outros'
+
+export const ClientRole = {
+  COMPRADOR: 'comprador',
+  VENDEDOR: 'vendedor',
+  INVESTIDOR: 'investidor',
+  INQUILINO: 'inquilino',
+  SENHORIO: 'senhorio'
 };
 
-export const DocumentCategoryLabels = {
-  [DocumentCategory.IDENTIFICACAO]: 'Identificação',
-  [DocumentCategory.COMPROVATIVO_MORADA]: 'Comprovativo de Morada',
-  [DocumentCategory.COMPROVATIVO_RENDIMENTOS]: 'Comprovativo de Rendimentos',
-  [DocumentCategory.DOCUMENTOS_BANCARIOS]: 'Documentos Bancários',
-  [DocumentCategory.PROPRIEDADES]: 'Propriedades',
-  [DocumentCategory.CONTRATOS]: 'Contratos',
-  [DocumentCategory.OUTROS]: 'Outros'
+export const ClientRoleLabels = {
+  [ClientRole.COMPRADOR]: 'Comprador',
+  [ClientRole.VENDEDOR]: 'Vendedor',
+  [ClientRole.INVESTIDOR]: 'Investidor',
+  [ClientRole.INQUILINO]: 'Inquilino',
+  [ClientRole.SENHORIO]: 'Senhorio'
 };
 
-// 🔧 EXPORT LEGACY para TIPOS_DOCUMENTO
-export const TIPOS_DOCUMENTO = Object.entries(DocumentCategoryLabels).map(([value, label]) => ({
-  value,
-  label
-}));
+export const ClientRoleColors = {
+  [ClientRole.COMPRADOR]: 'green',
+  [ClientRole.VENDEDOR]: 'blue',
+  [ClientRole.INVESTIDOR]: 'purple',
+  [ClientRole.INQUILINO]: 'orange',
+  [ClientRole.SENHORIO]: 'pink'
+};
 
-// =========================================
-// 🎯 ORIGEM DOS CLIENTES
-// =========================================
 export const ClientSource = {
   WEBSITE: 'website',
   REFERENCIA: 'referencia',
@@ -240,6 +323,10 @@ export const ClientSource = {
   EVENTO: 'evento',
   PARCEIRO: 'parceiro',
   RECOMENDACAO: 'recomendacao',
+  GOOGLE: 'google',
+  FACEBOOK: 'facebook',
+  INSTAGRAM: 'instagram',
+  IDEALISTA: 'idealista',
   OUTRO: 'outro'
 };
 
@@ -248,12 +335,97 @@ export const ClientSourceLabels = {
   [ClientSource.REFERENCIA]: 'Referência',
   [ClientSource.REDES_SOCIAIS]: 'Redes Sociais',
   [ClientSource.PUBLICIDADE]: 'Publicidade',
-  [ClientSource.IMOVEIS_ONLINE]: 'Imóveis Online',
+  [ClientSource.IMOVEIS_ONLINE]: 'Portais Imobiliários',
   [ClientSource.CONTACTO_DIRETO]: 'Contacto Direto',
   [ClientSource.EVENTO]: 'Evento',
   [ClientSource.PARCEIRO]: 'Parceiro',
   [ClientSource.RECOMENDACAO]: 'Recomendação',
+  [ClientSource.GOOGLE]: 'Google',
+  [ClientSource.FACEBOOK]: 'Facebook',
+  [ClientSource.INSTAGRAM]: 'Instagram',
+  [ClientSource.IDEALISTA]: 'Idealista',
   [ClientSource.OUTRO]: 'Outro'
+};
+
+// =========================================
+// 📄 DOCUMENTOS
+// =========================================
+
+export const DocumentCategory = {
+  CC: 'cc',
+  NIF: 'nif',
+  COMPROVATIVO_MORADA: 'comprovativo_morada',
+  COMPROVATIVO_RENDIMENTOS: 'comprovativo_rendimentos',
+  EXTRACTO_BANCARIO: 'extracto_bancario',
+  AUTORIZAÇÃO_CREDITO: 'autorizacao_credito',
+  CONTRATO_TRABALHO: 'contrato_trabalho',
+  DECLARACAO_IRS: 'declaracao_irs',
+  ESCRITURA: 'escritura',
+  CADERNETA_PREDIAL: 'caderneta_predial',
+  CERTIDAO_PERMANENTE: 'certidao_permanente',
+  OUTRO: 'outro'
+};
+
+export const DocumentCategoryLabels = {
+  [DocumentCategory.CC]: 'Cartão de Cidadão',
+  [DocumentCategory.NIF]: 'Cartão de Contribuinte',
+  [DocumentCategory.COMPROVATIVO_MORADA]: 'Comprovativo de Morada',
+  [DocumentCategory.COMPROVATIVO_RENDIMENTOS]: 'Comprovativo de Rendimentos',
+  [DocumentCategory.EXTRACTO_BANCARIO]: 'Extracto Bancário',
+  [DocumentCategory.AUTORIZAÇÃO_CREDITO]: 'Autorização de Crédito',
+  [DocumentCategory.CONTRATO_TRABALHO]: 'Contrato de Trabalho',
+  [DocumentCategory.DECLARACAO_IRS]: 'Declaração de IRS',
+  [DocumentCategory.ESCRITURA]: 'Escritura',
+  [DocumentCategory.CADERNETA_PREDIAL]: 'Caderneta Predial',
+  [DocumentCategory.CERTIDAO_PERMANENTE]: 'Certidão Permanente',
+  [DocumentCategory.OUTRO]: 'Outro'
+};
+
+// =========================================
+// 💼 NEGÓCIOS E TRANSAÇÕES
+// =========================================
+
+export const TipoDeal = {
+  COMPRA: 'compra',
+  VENDA: 'venda',
+  ARRENDAMENTO: 'arrendamento',
+  CONSULTORIA: 'consultoria',
+  AVALIACAO: 'avaliacao'
+};
+
+export const TipoDealLabels = {
+  [TipoDeal.COMPRA]: 'Compra',
+  [TipoDeal.VENDA]: 'Venda',
+  [TipoDeal.ARRENDAMENTO]: 'Arrendamento',
+  [TipoDeal.CONSULTORIA]: 'Consultoria',
+  [TipoDeal.AVALIACAO]: 'Avaliação'
+};
+
+export const StatusDeal = {
+  PROSPECTO: 'prospecto',
+  QUALIFICADO: 'qualificado',
+  PROPOSTA: 'proposta',
+  NEGOCIACAO: 'negociacao',
+  FECHADO: 'fechado',
+  CANCELADO: 'cancelado'
+};
+
+export const StatusDealLabels = {
+  [StatusDeal.PROSPECTO]: 'Prospecto',
+  [StatusDeal.QUALIFICADO]: 'Qualificado',
+  [StatusDeal.PROPOSTA]: 'Proposta Enviada',
+  [StatusDeal.NEGOCIACAO]: 'Em Negociação',
+  [StatusDeal.FECHADO]: 'Fechado',
+  [StatusDeal.CANCELADO]: 'Cancelado'
+};
+
+export const StatusDealColors = {
+  [StatusDeal.PROSPECTO]: 'gray',
+  [StatusDeal.QUALIFICADO]: 'blue',
+  [StatusDeal.PROPOSTA]: 'yellow',
+  [StatusDeal.NEGOCIACAO]: 'orange',
+  [StatusDeal.FECHADO]: 'green',
+  [StatusDeal.CANCELADO]: 'red'
 };
 
 // =========================================
@@ -281,11 +453,12 @@ export const FILE_LIMITS = {
 };
 
 export const REQUIRED_FIELDS = {
-  STEP_1: ['nome', 'email', 'telefone'],
-  STEP_2: [],
-  STEP_3: [],
-  STEP_4: [],
-  STEP_5: ['roles']
+  STEP_1: ['nome', 'email', 'telefone', 'dataNascimento'], // Dados pessoais essenciais
+  STEP_2: [], // Cônjuge (condicional)
+  STEP_3: [], // Dados bancários (opcional)
+  STEP_4: ['dataPrimeiroContacto', 'meioPrimeiroContacto'], // Dados de contacto
+  STEP_5: ['orcamentoMinimo', 'orcamentoMaximo'], // Perfil imobiliário
+  STEP_6: ['roles'] // Roles (obrigatório)
 };
 
 export const INPUT_MASKS = {
@@ -299,53 +472,186 @@ export const VALIDATION_REGEX = {
   EMAIL: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
   TELEFONE: /^(\+351)?[0-9]{9}$/,
   NIF: /^[0-9]{9}$/,
-  IBAN: /^PT50[0-9]{19}$/,
+  IBAN: /^PT50[0-9]{21}$/,
   CARTAO_CIDADAO: /^[0-9]{8}[0-9][A-Z]{2}[0-9]$/
 };
 
-export const ESTADOS_COM_CONJUGE = [
-  EstadoCivil.CASADO,
-  EstadoCivil.UNIAO_FACTO
-];
-
-export const ROLES_COM_DEALS = [
-  ClientRole.COMPRADOR,
-  ClientRole.VENDEDOR,
-  ClientRole.INVESTIDOR,
-  ClientRole.SENHORIO,
-  ClientRole.INQUILINO
-];
+export const SCORE_WEIGHTS = {
+  DADOS_PESSOAIS: 0.2,
+  DADOS_BANCARIOS: 0.15,
+  PERFIL_IMOBILIARIO: 0.25,
+  DOCUMENTOS: 0.15,
+  CONTACTOS_RECENTES: 0.15,
+  DEALS_ATIVOS: 0.1
+};
 
 // =========================================
-// 📦 EXPORT PRINCIPAL
+// 📊 ARRAYS PARA SELECTS E DROPDOWNS
 // =========================================
-export const ClientEnums = {
-  EstadoCivil,
-  EstadoCivilLabels,
-  ClientRole,
-  ClientRoleLabels,
-  ClientRoleColors,
-  ComunhaoBens,
-  ComunhaoBensLabels,
-  DealType,
-  DealTypeLabels,
-  DealStatus,
-  DealStatusLabels,
-  DealStatusColors,
-  CommunicationType,
-  CommunicationTypeLabels,
-  DocumentCategory,
-  DocumentCategoryLabels,
-  ClientSource,
-  ClientSourceLabels,
-  PAGINATION,
-  FILE_LIMITS,
-  REQUIRED_FIELDS,
-  INPUT_MASKS,
-  VALIDATION_REGEX,
-  ESTADOS_COM_CONJUGE,
-  ROLES_COM_DEALS,
-  // Legacy exports
-  ESTADOS_CIVIS,
-  TIPOS_DOCUMENTO
+
+export const ESTADOS_CIVIS = Object.entries(EstadoCivilLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const RENDIMENTOS_ANUAIS = Object.entries(RendimentoAnualLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const ORCAMENTOS_FAIXAS = Object.entries(OrcamentoFaixaLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const TIPOS_HABITACAO = Object.entries(TipoHabitacaoLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const REGIMES_HABITACAO = Object.entries(RegimeHabitacaoLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const TIPOS_IMOVEL = Object.entries(TipoImovelLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const MOTIVACOES_COMPRA = Object.entries(MotivacoesCompraLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const PRIORIDADES_IMOVEL = Object.entries(PrioridadesImovelLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const URGENCIAS_COMPRA = Object.entries(UrgenciaCompraLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const MEIOS_CONTACTO_PREFERIDO = Object.entries(MeioContactoPreferidoLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const FREQUENCIAS_CONTACTO = Object.entries(FrequenciaContactoLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const TEMPERATURAS_CLIENTE = Object.entries(TemperaturaClienteLabels).map(([value, label]) => ({
+  value,
+  label,
+  color: TemperaturaClienteColors[value]
+}));
+
+export const CLIENT_ROLES = Object.entries(ClientRoleLabels).map(([value, label]) => ({
+  value,
+  label,
+  color: ClientRoleColors[value]
+}));
+
+export const CLIENT_SOURCES = Object.entries(ClientSourceLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const TIPOS_DOCUMENTO = Object.entries(DocumentCategoryLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const TIPOS_DEAL = Object.entries(TipoDealLabels).map(([value, label]) => ({
+  value,
+  label
+}));
+
+export const STATUS_DEALS = Object.entries(StatusDealLabels).map(([value, label]) => ({
+  value,
+  label,
+  color: StatusDealColors[value]
+}));
+
+// =========================================
+// 🎯 FORM STEPS CONFIGURATION
+// =========================================
+
+export const FORM_STEPS = {
+  1: {
+    title: 'Dados Pessoais',
+    description: 'Informações básicas do cliente',
+    icon: 'User',
+    fields: ['nome', 'email', 'telefone', 'dataNascimento', 'profissao', 'empresa']
+  },
+  2: {
+    title: 'Dados do Cônjuge',
+    description: 'Informações do cônjuge (se aplicável)',
+    icon: 'Users',
+    conditional: true,
+    fields: ['conjuge.*']
+  },
+  3: {
+    title: 'Dados Bancários',
+    description: 'Informações bancárias e financeiras',
+    icon: 'CreditCard',
+    fields: ['dadosBancarios.*', 'rendimentoAnual']
+  },
+  4: {
+    title: 'Histórico de Contacto',
+    description: 'Dados do primeiro contacto e preferências',
+    icon: 'Phone',
+    fields: ['dataPrimeiroContacto', 'meioPrimeiroContacto', 'origem']
+  },
+  5: {
+    title: 'Perfil Imobiliário',
+    description: 'Preferências e necessidades imobiliárias',
+    icon: 'Home',
+    fields: ['perfilImobiliario.*']
+  },
+  6: {
+    title: 'Roles e Finalização',
+    description: 'Definir roles e configurações finais',
+    icon: 'CheckCircle',
+    fields: ['roles', 'comunicacoes.*', 'notas']
+  }
+};
+
+// =========================================
+// 🎨 CORES E TEMAS
+// =========================================
+
+export const THEME_COLORS = {
+  primary: {
+    50: '#eff6ff',
+    100: '#dbeafe',
+    500: '#3b82f6',
+    600: '#2563eb',
+    700: '#1d4ed8'
+  },
+  success: {
+    50: '#f0fdf4',
+    100: '#dcfce7',
+    500: '#22c55e',
+    600: '#16a34a',
+    700: '#15803d'
+  },
+  warning: {
+    50: '#fffbeb',
+    100: '#fef3c7',
+    500: '#f59e0b',
+    600: '#d97706',
+    700: '#b45309'
+  },
+  danger: {
+    50: '#fef2f2',
+    100: '#fee2e2',
+    500: '#ef4444',
+    600: '#dc2626',
+    700: '#b91c1c'
+  }
 };
