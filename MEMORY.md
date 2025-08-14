@@ -200,27 +200,135 @@ FASE 1: ✅ Clientes COMPLETADO COM MÁXIMA EXCELÊNCIA!
 ├── ✅ Arquitetura de negócios por roles definida
 └── ✅ PROJECT_RULES seguidas rigorosamente
 
-FASE 2: 🎯 DEALS & PIPELINES (PRÓXIMO PRIORITÁRIO)
-├── 🎲 Módulo Deals com Kanban boards por role
-├── 📊 Pipeline Comprador (6 stages)
-├── 🏠 Pipeline Vendedor (6 stages)  
-├── 💰 Dashboard Investidor (ROI, Yield, Cash Flow)
-├── 🏢 Dashboard Senhorio (Rendas, IMI, Inquilinos)
-├── 🏠 Pesquisa Inquilino (Filtros, Opções)
-└── 🔄 Integração Deals ↔ Clientes
+## 🎯 **SISTEMA DE LEADS ÉPICO - ARQUITETURA DEFINIDA**
 
-FASE 3: 📊 DASHBOARDS ESPECIALIZADOS
-├── 💰 Calculadora Viabilidade Investimento
-├── 🏢 Gestão Rendimentos & Impostos  
-├── 📈 Relatórios por Role
-├── 📅 Calendar integrado com pipelines
-└── 🎯 KPIs específicos por tipo de negócio
+### **🔥 CONCEITO REVOLUCIONÁRIO APROVADO:**
+**"O sistema de leads que transforma consultores em máquinas de vendas inteligentes"**
 
-FASE 4: 🔧 OTIMIZAÇÕES & INTEGRAÇÕES
-├── 📱 Mobile responsiveness  
-├── 🌐 PWA features
-├── 🔗 Integrações externas (Idealista, etc)
-└── 🤖 Automações por pipeline
+### **✅ DECISÕES ARQUITETURAIS FINAIS:**
+
+**📞 SISTEMA DE CHAMADAS:**
+- ✅ Click-to-smartphone (sem Twilio/WebRTC)
+- ✅ Fallback tel:// links + WhatsApp direct
+- ✅ Call tracking manual pós-chamada
+- ✅ Smart reminders para ligar
+
+**🤖 AUTOMAÇÕES:**
+- ✅ Avançadas mas simples de interpretar
+- ✅ Visual automation builder (drag & drop)
+- ✅ Plain language rules
+- ✅ Always overridable
+
+**💬 WHATSAPP:**
+- ✅ Integração gratuita (wa.me/ links)
+- ✅ Message templates personalizáveis
+- ✅ QR codes para contacto
+- ✅ Broadcast planning manual
+
+**🎭 SCRIPTS:**
+- ✅ Adaptativos baseados no lead profile
+- ✅ Personalization automática
+- ✅ Situational variations
+- ✅ A/B testing integrado
+
+**📊 ANALYTICS:**
+- ✅ Métricas essenciais e acionáveis
+- ✅ Insights práticos ("Terças +30% conversão")
+- ✅ Trend analysis útil
+- ✅ Simple dashboards
+
+**🎮 GAMIFICAÇÃO:**
+- ❌ REMOVIDA - Foco total em produtividade
+
+### **🏗️ ESTRUTURA MODULAR LEADS (Planejada):**
+
+```
+src/features/leads/
+├── pages/LeadsPage.jsx (300 linhas) - Hub central
+├── components/
+│   ├── dashboard/
+│   │   ├── LeadsDashboard.jsx (350 linhas) - Métricas
+│   │   └── ActionCenter.jsx (200 linhas) - Próximas ações
+│   ├── pipeline/
+│   │   ├── LeadPipeline.jsx (400 linhas) - Kanban visual
+│   │   └── LeadCard.jsx (250 linhas) - Cards interativos
+│   ├── communication/
+│   │   ├── CallInterface.jsx (300 linhas) - Click-to-call
+│   │   ├── ScriptEngine.jsx (350 linhas) - Scripts adaptativos
+│   │   ├── WhatsAppHub.jsx (250 linhas) - Templates
+│   │   └── EmailCenter.jsx (300 linhas) - Sequences
+│   ├── automation/
+│   │   ├── AutomationBuilder.jsx (400 linhas) - Visual rules
+│   │   ├── TriggerManager.jsx (250 linhas) - Gestão triggers
+│   │   └── SequenceEditor.jsx (300 linhas) - Follow-ups
+│   ├── capture/
+│   │   ├── LeadCaptureForm.jsx (300 linhas) - Multi-source
+│   │   └── QuickEntry.jsx (150 linhas) - Entrada rápida
+│   └── analytics/
+│       ├── ConversionMetrics.jsx (250 linhas) - KPIs
+│       └── PerformanceInsights.jsx (200 linhas) - Padrões
+├── hooks/
+│   ├── useLeads.js (400 linhas) - CRUD + real-time
+│   ├── useAutomations.js (300 linhas) - Rules engine
+│   ├── useCallSystem.js (200 linhas) - Call helpers
+│   ├── useLeadScoring.js (250 linhas) - Scoring logic
+│   └── useCommunications.js (250 linhas) - Multi-channel
+├── services/
+│   ├── leadsService.js (400 linhas) - Core CRUD
+│   ├── automationService.js (350 linhas) - Rules processing
+│   ├── scoringService.js (300 linhas) - Intelligence
+│   └── communicationService.js (250 linhas) - Templates
+└── utils/
+    ├── leadUtils.js (300 linhas) - Helpers
+    ├── scoringEngine.js (350 linhas) - Algoritmos
+    ├── scriptGenerator.js (250 linhas) - Dynamic scripts
+    ├── automationRules.js (200 linhas) - Rule definitions
+    └── communicationTemplates.js (200 linhas) - Templates
+```
+
+### **🚀 PLANO DE IMPLEMENTAÇÃO LEADS:**
+
+**FASE 1 - CORE (5 ficheiros):**
+1. src/features/leads/types/index.js (200 linhas) - Enums e tipos
+2. src/features/leads/services/leadsService.js (400 linhas) - Firebase CRUD
+3. src/features/leads/hooks/useLeads.js (400 linhas) - Hook principal
+4. src/features/leads/components/pipeline/LeadCard.jsx (250 linhas) - Card base
+5. src/features/leads/pages/LeadsPage.jsx (300 linhas) - Hub principal
+
+**FASE 2 - PIPELINE & INTERFACE (3 ficheiros):**
+1. src/features/leads/components/pipeline/LeadPipeline.jsx (400 linhas) - Kanban
+2. src/features/leads/components/dashboard/LeadsDashboard.jsx (350 linhas) - Dashboard
+3. src/features/leads/components/capture/LeadCaptureForm.jsx (300 linhas) - Forms
+
+**FASE 3 - COMMUNICATION & AUTOMATION (4 ficheiros):**
+1. src/features/leads/components/communication/CallInterface.jsx (300 linhas) - Calls
+2. src/features/leads/components/communication/WhatsAppHub.jsx (250 linhas) - WhatsApp
+3. src/features/leads/hooks/useAutomations.js (300 linhas) - Automações
+4. src/features/leads/utils/scoringEngine.js (350 linhas) - Intelligence
+
+**TOTAL:** 12 ficheiros, 3850 linhas (média 320 linhas/ficheiro ✅)
+
+FASE 2: 🎯 LEADS - SISTEMA ÉPICO (EM IMPLEMENTAÇÃO)
+├── 🎨 Interface viciante com pipeline visual
+├── 🤖 Lead scoring automático inteligente
+├── 🔥 Pipeline kanban com drag & drop
+├── ⚡ Click-to-smartphone calling system
+├── 📊 Analytics essenciais e práticos
+├── 🎯 Follow-up sequences visuais
+├── 💬 WhatsApp integration gratuita
+├── 🎭 Scripts adaptativos por lead profile
+└── 🧠 Automações avançadas mas simples
+
+FASE 3: 💼 DEALS & PIPELINES  
+├── 🎲 Kanban boards por role
+├── 🔗 Integração Leads→Clientes→Deals
+├── 📊 Pipelines específicos por tipo
+└── 💰 Calculadoras ROI/Viabilidade
+
+FASE 4: 🔧 OTIMIZAÇÕES & AUTOMAÇÕES
+├── 📱 Mobile responsiveness
+├── 🤖 Automações inteligentes avançadas
+└── 🌐 Integrações externas
 ```
 
 ### **🏗️ ESTRUTURA MODULAR PLANEADA**
@@ -353,6 +461,6 @@ Identificar próximo módulo para desenvolvimento ou otimização (Dashboard, Au
 
 ---
 
-**📝 Última atualização:** 13 Agosto 2025 - Arquitetura de negócios por roles definida  
-**🔄 Próxima ação:** Implementar módulo DEALS com Kanban boards específicos por role
-**🎯 Prioridade:** Pipeline Comprador → Pipeline Vendedor → Dashboard Investidor
+**📝 Última atualização:** 14 Agosto 2025 - Sistema de Leads épico planejado  
+**🔄 Próxima ação:** FASE 1 - Implementar types/index.js (1/5)
+**🎯 Meta:** Sistema de leads mais inteligente que qualquer CRM existente
