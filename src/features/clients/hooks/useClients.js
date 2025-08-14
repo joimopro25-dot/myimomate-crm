@@ -72,78 +72,73 @@ export const useClients = (options = {}) => {
    * Fetch clientes com debug melhorado
    */
   const fetchClients = useCallback(async (fetchOptions = {}) => {
-    if (!userId) {
-      logDebug('❌ Fetch cancelado - usuário não autenticado');
-      return;
-    }
+  if (!userId) {
+    logDebug('❌ Fetch cancelado - usuário não autenticado');
+    return;
+  }
 
-    if (!isMountedRef.current) {
-      logDebug('❌ Fetch cancelado - componente desmontado');
-      return;
-    }
+  // REMOVIDO: Verificação restritiva de mounted antes do fetch
+  // Permitir fetch mesmo se componente foi desmontado recentemente
 
-    try {
-      const { reset = false, customFilters = null } = fetchOptions;
-      
-      logDebug('🚀 Iniciando fetch clientes', { 
-        reset, 
-        filters: customFilters || filters,
-        page: reset ? 1 : page
-      });
+  try {
+    const { reset = false, customFilters = null } = fetchOptions;
+    
+    logDebug('🚀 Iniciando fetch clientes', { 
+      reset, 
+      filters: customFilters || filters,
+      page: reset ? 1 : page,
+      isMounted: isMountedRef.current // Log para debug
+    });
 
-      // Definir loading state
-      useClientsStore.setState({ loading: true, error: null });
+    // Definir loading state
+    useClientsStore.setState({ loading: true, error: null });
 
-      // Chamar service
-      const response = await clientsService.getClients(userId, {
-        filters: customFilters || filters,
-        page: reset ? 1 : page,
-        limit
-      });
+    // Chamar service
+    const response = await clientsService.getClients(userId, {
+      filters: customFilters || filters,
+      page: reset ? 1 : page,
+      limit
+    });
 
-      logDebug('✅ Clientes recebidos do Firebase', {
-        count: response.data?.length || 0,
-        total: response.total || 0,
-        hasMore: response.hasMore || false
-      });
+    logDebug('✅ Clientes recebidos do Firebase', {
+      count: response.data?.length || 0,
+      total: response.total || 0,
+      hasMore: response.hasMore || false,
+      isMountedAfterFetch: isMountedRef.current
+    });
 
-      // Verificar se ainda está montado
-      if (!isMountedRef.current) {
-        logDebug('❌ Componente desmontado durante fetch');
-        return;
-      }
+    // CORREÇÃO: Atualizar store mesmo se componente foi desmontado
+    // Os dados são globais no Zustand, não dependem do componente específico
+    useClientsStore.setState({
+      clients: reset ? response.data : 
+               page === 1 ? response.data : 
+               [...clients, ...response.data],
+      page: response.page || 1,
+      total: response.total || 0,
+      hasMore: response.hasMore || false,
+      loading: false,
+      error: null
+    });
 
-      // Atualizar store
-      useClientsStore.setState({
-        clients: reset ? response.data : 
-                 page === 1 ? response.data : 
-                 [...clients, ...response.data],
-        page: response.page || 1,
-        total: response.total || 0,
-        hasMore: response.hasMore || false,
-        loading: false,
-        error: null
-      });
+    logDebug('✅ Store atualizado com sucesso', {
+      clientsInStore: response.data?.length || 0,
+      finalMountedState: isMountedRef.current
+    });
 
-      logDebug('✅ Store atualizado com sucesso', {
-        clientsInStore: response.data?.length || 0
-      });
+    return response;
 
-      return response;
-
-    } catch (error) {
-      logDebug('❌ Erro no fetch', { errorMessage: error.message });
-      
-      if (!isMountedRef.current) return;
-      
-      useClientsStore.setState({
-        loading: false,
-        error: error.message
-      });
-      
-      throw error;
-    }
-  }, [userId, filters, page, limit, clients, logDebug]);
+  } catch (error) {
+    logDebug('❌ Erro no fetch', { errorMessage: error.message });
+    
+    // CORREÇÃO: Atualizar estado de erro mesmo se desmontado
+    useClientsStore.setState({
+      loading: false,
+      error: error.message
+    });
+    
+    throw error;
+  }
+}, [userId, filters, page, limit, clients, logDebug]);
 
   /**
    * Fetch estatísticas
