@@ -1,8 +1,3 @@
-// =========================================
-// 🎯 PAGE - LeadsPage CORREÇÃO setSelectedLead
-// =========================================
-// Correção do erro linha 209 - setSelectedLead undefined
-
 import React, { useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -16,16 +11,23 @@ import {
   Users,
   Zap,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  BarChart3,
+  Filter,
+  Search,
+  Grid,
+  List,
+  Kanban
 } from 'lucide-react';
 
 // Hooks
 import useLeads from '../hooks/useLeads';
 
-// Components - MODAL REAL ADICIONADO
+// Components
 import LeadModal from '../components/modals/LeadModal';
+import LeadCard from '../components/cards/LeadCard';
 
-// Types fallback (se não existir arquivo)
+// Types fallback
 const LeadStatus = {
   NOVO: 'novo',
   CONTACTADO: 'contactado', 
@@ -45,20 +47,9 @@ const LeadTemperature = {
   FERVENDO: 'fervendo'
 };
 
-const ContactMethod = {
-  CALL: 'call',
-  EMAIL: 'email',
-  WHATSAPP: 'whatsapp'
-};
-
-const ContactOutcome = {
-  CONNECTED: 'connected',
-  EMAIL_SENT: 'email_sent'
-};
-
 /**
- * LeadsPage - Sistema épico com modal REAL funcionando
- * CORREÇÃO: setSelectedLead removido, usando apenas selectedLeadForModal
+ * LeadsPage - Sistema de gestão de leads com pipeline Kanban
+ * CORREÇÃO: Estado do modal gerenciado localmente sem conflitos
  */
 const LeadsPage = () => {
   // =========================================
@@ -85,11 +76,11 @@ const LeadsPage = () => {
     enableAutoScoring: true
   });
 
-  // Page state - CORRIGIDO SEM CONFLITOS
-  const [viewMode, setViewMode] = useState('kanban'); // 'dashboard' | 'kanban' | 'list'
+  // Estado local da página - SEM CONFLITOS
+  const [viewMode, setViewMode] = useState('dashboard'); // 'dashboard' | 'kanban' | 'list'
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('create'); // 'create' | 'edit' | 'view'
-  const [selectedLeadForModal, setSelectedLeadForModal] = useState(null); // ✅ ÚNICO estado para lead selecionado
+  const [selectedLead, setSelectedLead] = useState(null); // ✅ Estado local para modal
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilters, setActiveFilters] = useState({});
 
@@ -132,35 +123,37 @@ const LeadsPage = () => {
   }, [leads]);
 
   // =========================================
-  // 📋 HANDLERS - CORRIGIDOS SEM setSelectedLead
+  // 📋 HANDLERS - CORRIGIDOS 
   // =========================================
 
   const handleCreateLead = useCallback(() => {
-    setSelectedLeadForModal(null);
+    setSelectedLead(null);
     setModalMode('create');
     setShowModal(true);
   }, []);
 
   const handleViewLead = useCallback((lead) => {
-    setSelectedLeadForModal(lead);
+    setSelectedLead(lead);
     setModalMode('view');
     setShowModal(true);
   }, []);
 
   const handleEditLead = useCallback((lead) => {
-    setSelectedLeadForModal(lead);
+    setSelectedLead(lead);
     setModalMode('edit');
     setShowModal(true);
   }, []);
 
   const handleModalClose = useCallback(() => {
     setShowModal(false);
-    setSelectedLeadForModal(null);
+    setSelectedLead(null);
   }, []);
 
   const handleLeadCreate = useCallback(async (leadData) => {
     try {
       await createLead(leadData);
+      setShowModal(false);
+      setSelectedLead(null);
       console.log('✅ Lead criado com sucesso');
     } catch (error) {
       console.error('❌ Erro ao criar lead:', error);
@@ -171,6 +164,8 @@ const LeadsPage = () => {
   const handleLeadUpdate = useCallback(async (leadId, leadData) => {
     try {
       await updateLead(leadId, leadData);
+      setShowModal(false);
+      setSelectedLead(null);
       console.log('✅ Lead atualizado com sucesso');
     } catch (error) {
       console.error('❌ Erro ao atualizar lead:', error);
@@ -181,6 +176,8 @@ const LeadsPage = () => {
   const handleLeadDelete = useCallback(async (leadId) => {
     try {
       await deleteLead(leadId);
+      setShowModal(false);
+      setSelectedLead(null);
       console.log('✅ Lead deletado com sucesso');
     } catch (error) {
       console.error('❌ Erro ao deletar lead:', error);
@@ -200,10 +197,9 @@ const LeadsPage = () => {
       
       try {
         await addCommunication(lead.id, {
-          tipo: 'call_attempt',
-          metodo: ContactMethod.CALL,
-          outcome: ContactOutcome.CONNECTED,
-          notas: `Chamada iniciada via sistema para ${lead.phone}`
+          type: 'call',
+          notes: 'Chamada realizada via sistema',
+          outcome: 'attempted'
         });
       } catch (error) {
         console.error('Erro ao registrar comunicação:', error);
@@ -212,273 +208,258 @@ const LeadsPage = () => {
   }, [addCommunication]);
 
   const handleEmail = useCallback(async (lead) => {
-    console.log('📧 Abrindo email para:', lead.email);
+    console.log('📧 Abrindo email para:', lead.name);
     
     if (lead.email) {
-      const subject = `Seguimento - ${lead.name}`;
-      const body = `Olá ${lead.name},\n\nEspero que esteja bem.\n\n`;
-      
-      window.open(`mailto:${lead.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
+      const subject = encodeURIComponent(`Contacto MyImoMate - ${lead.name}`);
+      const body = encodeURIComponent(`Olá ${lead.name},\n\n`);
+      window.open(`mailto:${lead.email}?subject=${subject}&body=${body}`, '_self');
       
       try {
         await addCommunication(lead.id, {
-          tipo: 'email_sent',
-          metodo: ContactMethod.EMAIL,
-          outcome: ContactOutcome.EMAIL_SENT,
-          notas: `Email enviado para ${lead.email}`
+          type: 'email',
+          notes: 'Email enviado via sistema',
+          outcome: 'sent'
         });
       } catch (error) {
-        console.error('Erro ao registrar email:', error);
+        console.error('Erro ao registrar comunicação:', error);
       }
     }
   }, [addCommunication]);
 
   const handleWhatsApp = useCallback(async (lead) => {
-    console.log('💬 Abrindo WhatsApp para:', lead.phone);
+    console.log('💬 Abrindo WhatsApp para:', lead.name);
     
     if (lead.phone) {
-      const message = `Olá ${lead.name}! Espero que esteja bem. `;
-      const whatsappUrl = `https://wa.me/${lead.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-      
-      window.open(whatsappUrl, '_blank');
+      const message = encodeURIComponent(`Olá ${lead.name}! Sou da MyImoMate.`);
+      window.open(`https://wa.me/${lead.phone.replace(/\D/g, '')}?text=${message}`, '_blank');
       
       try {
         await addCommunication(lead.id, {
-          tipo: 'whatsapp_sent',
-          metodo: ContactMethod.WHATSAPP,
-          outcome: ContactOutcome.CONNECTED,
-          notas: `WhatsApp enviado para ${lead.phone}`
+          type: 'whatsapp',
+          notes: 'WhatsApp enviado via sistema',
+          outcome: 'sent'
         });
       } catch (error) {
-        console.error('Erro ao registrar WhatsApp:', error);
+        console.error('Erro ao registrar comunicação:', error);
       }
     }
   }, [addCommunication]);
 
-  const handleConvertLead = useCallback(async (lead) => {
-    try {
-      console.log('✨ Convertendo lead para cliente:', lead.name);
-      
-      const result = await convertToClient(lead.id);
-      console.log('✅ Lead convertido:', result);
-      
-      alert(`Lead ${lead.name} convertido para cliente com sucesso!`);
-      
-    } catch (error) {
-      console.error('❌ Erro ao converter lead:', error);
-      alert('Erro ao converter lead. Tente novamente.');
-    }
-  }, [convertToClient]);
-
   // =========================================
-  // 🎨 RENDER COMPONENTS
+  // 🎨 RENDER HELPERS
   // =========================================
 
-  const StatsCard = ({ icon: Icon, label, value, color = 'blue' }) => (
-    <motion.div
-      whileHover={{ scale: 1.02 }}
-      className={`p-4 rounded-xl border-2 transition-all cursor-pointer ${
-        color === 'blue' ? 'bg-blue-50 border-blue-200 hover:border-blue-300' :
-        color === 'green' ? 'bg-green-50 border-green-200 hover:border-green-300' :
-        color === 'red' ? 'bg-red-50 border-red-200 hover:border-red-300' :
-        color === 'purple' ? 'bg-purple-50 border-purple-200 hover:border-purple-300' :
-        color === 'orange' ? 'bg-orange-50 border-orange-200 hover:border-orange-300' :
-        'bg-gray-50 border-gray-200 hover:border-gray-300'
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <Icon className={`w-5 h-5 ${
-          color === 'blue' ? 'text-blue-600' :
-          color === 'green' ? 'text-green-600' :
-          color === 'red' ? 'text-red-600' :
-          color === 'purple' ? 'text-purple-600' :
-          color === 'orange' ? 'text-orange-600' :
-          'text-gray-600'
-        }`} />
-        <div>
-          <div className="text-2xl font-bold text-gray-900">{value}</div>
-          <div className="text-sm text-gray-600">{label}</div>
-        </div>
-      </div>
-    </motion.div>
-  );
-
-  const LeadCard = ({ lead, variant = 'kanban' }) => (
-    <motion.div
-      layout
-      className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-all"
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <h4 className="font-medium text-gray-900">{lead.name || 'Nome não informado'}</h4>
-          <p className="text-sm text-gray-600">{lead.email || 'Email não informado'}</p>
-        </div>
-        <div className="flex gap-1">
-          <button
-            onClick={() => handleViewLead(lead)}
-            className="p-1 hover:bg-gray-100 rounded"
-            title="Ver detalhes"
-          >
-            👁️
-          </button>
-          <button
-            onClick={() => handleEditLead(lead)}
-            className="p-1 hover:bg-gray-100 rounded"
-            title="Editar"
-          >
-            ✏️
-          </button>
-        </div>
-      </div>
-      
-      <div className="flex items-center justify-between">
-        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
-          lead.temperature === 'fervendo' ? 'bg-red-100 text-red-700' :
-          lead.temperature === 'quente' ? 'bg-orange-100 text-orange-700' :
-          lead.temperature === 'morno' ? 'bg-yellow-100 text-yellow-700' :
-          'bg-blue-100 text-blue-700'
-        }`}>
-          {lead.temperature === 'fervendo' ? '🔥' :
-           lead.temperature === 'quente' ? '🌡️' :
-           lead.temperature === 'morno' ? '☀️' : '❄️'} {lead.temperature || 'frio'}
-        </div>
-        <div className="text-sm text-gray-500">
-          Score: {lead.score || 0}
-        </div>
-      </div>
-
-      {/* Action buttons */}
-      <div className="flex gap-2 mt-3">
-        <button
-          onClick={() => handleCall(lead)}
-          className="flex-1 bg-green-100 text-green-700 px-2 py-1 rounded text-xs hover:bg-green-200 transition-colors"
-          title="Ligar"
-        >
-          📞
-        </button>
-        <button
-          onClick={() => handleEmail(lead)}
-          className="flex-1 bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs hover:bg-blue-200 transition-colors"
-          title="Email"
-        >
-          📧
-        </button>
-        <button
-          onClick={() => handleWhatsApp(lead)}
-          className="flex-1 bg-green-100 text-green-700 px-2 py-1 rounded text-xs hover:bg-green-200 transition-colors"
-          title="WhatsApp"
-        >
-          💬
-        </button>
-      </div>
-    </motion.div>
-  );
-
-  // =========================================
-  // 🎨 ERROR HANDLING
-  // =========================================
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center p-8 bg-white rounded-2xl shadow-lg max-w-md w-full mx-4"
-        >
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-red-600 mb-2">
-            Erro ao carregar leads
-          </h2>
-          <p className="text-gray-600 mb-6">{error}</p>
-          <div className="flex gap-3 justify-center">
-            <button
-              onClick={clearError}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              Fechar
-            </button>
-            <button
-              onClick={refresh}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Tentar Novamente
-            </button>
+  const renderStatsCards = () => (
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Total Leads</p>
+            <p className="text-2xl font-bold text-gray-900">{dashboardData.total}</p>
           </div>
-        </motion.div>
-      </div>
-    );
-  }
+          <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Users className="w-4 h-4 text-blue-600" />
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Novos</p>
+            <p className="text-2xl font-bold text-gray-900">{dashboardData.newLeads}</p>
+          </div>
+          <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
+            <Zap className="w-4 h-4 text-green-600" />
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Quentes</p>
+            <p className="text-2xl font-bold text-gray-900">{dashboardData.hotLeads}</p>
+          </div>
+          <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+            <Thermometer className="w-4 h-4 text-red-600" />
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Prontos</p>
+            <p className="text-2xl font-bold text-gray-900">{dashboardData.readyToConvert}</p>
+          </div>
+          <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+            <Target className="w-4 h-4 text-purple-600" />
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Score Médio</p>
+            <p className="text-2xl font-bold text-gray-900">{dashboardData.averageScore}%</p>
+          </div>
+          <div className="w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-yellow-600" />
+          </div>
+        </div>
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-gray-600">Atenção</p>
+            <p className="text-2xl font-bold text-gray-900">{dashboardData.needsAttention}</p>
+          </div>
+          <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
+            <AlertCircle className="w-4 h-4 text-orange-600" />
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+
+  const renderViewModeToggle = () => (
+    <div className="flex items-center bg-gray-100 rounded-lg p-1">
+      <button
+        onClick={() => setViewMode('dashboard')}
+        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+          viewMode === 'dashboard'
+            ? 'bg-white text-gray-900 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
+        }`}
+      >
+        <BarChart3 className="w-4 h-4 inline mr-1" />
+        Dashboard
+      </button>
+      <button
+        onClick={() => setViewMode('kanban')}
+        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+          viewMode === 'kanban'
+            ? 'bg-white text-gray-900 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
+        }`}
+      >
+        <Kanban className="w-4 h-4 inline mr-1" />
+        Pipeline
+      </button>
+      <button
+        onClick={() => setViewMode('list')}
+        className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+          viewMode === 'list'
+            ? 'bg-white text-gray-900 shadow-sm'
+            : 'text-gray-600 hover:text-gray-900'
+        }`}
+      >
+        <List className="w-4 h-4 inline mr-1" />
+        Lista
+      </button>
+    </div>
+  );
 
   // =========================================
   // 🎨 MAIN RENDER
   // =========================================
 
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-200 max-w-md w-full mx-4">
+          <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-lg mx-auto mb-4">
+            <AlertCircle className="w-6 h-6 text-red-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+            Erro ao carregar leads
+          </h3>
+          <p className="text-gray-600 text-center mb-6">{error}</p>
+          <div className="flex gap-3">
+            <button
+              onClick={refresh}
+              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              Tentar Novamente
+            </button>
+            <button
+              onClick={clearError}
+              className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Dismissar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header Premium */}
-      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white">
-        <div className="container mx-auto px-4 py-6">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold mb-2">Sistema de Leads Épico</h1>
-              <p className="text-blue-100">
-                {dashboardData.total} leads • {dashboardData.hotLeads} quentes • 
-                {dashboardData.averageScore}% score médio
+              <h1 className="text-2xl font-bold text-gray-900">Sistema de Leads Épico</h1>
+              <p className="text-gray-600 mt-1">
+                {dashboardData.total} leads • {dashboardData.newLeads} quentes • {dashboardData.averageScore}% score médio
               </p>
             </div>
-            
             <div className="flex items-center gap-4">
-              {/* View Mode Selector */}
-              <div className="flex bg-white/20 rounded-lg p-1">
-                {['dashboard', 'kanban', 'list'].map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setViewMode(mode)}
-                    className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                      viewMode === mode 
-                        ? 'bg-white text-blue-600' 
-                        : 'text-white hover:bg-white/10'
-                    }`}
-                  >
-                    {mode === 'dashboard' ? 'Dashboard' : 
-                     mode === 'kanban' ? 'Pipeline' : 'Lista'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Botão Novo Lead - FUNCIONAL */}
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              {renderViewModeToggle()}
+              <button
                 onClick={handleCreateLead}
-                className="bg-white text-blue-600 px-6 py-2 rounded-lg font-medium hover:bg-blue-50 transition-colors flex items-center gap-2"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
               >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 Novo Lead
-              </motion.button>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Stats Bar */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="container mx-auto px-4 py-4">
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-            <StatsCard icon={Users} label="Total Leads" value={dashboardData.total} color="blue" />
-            <StatsCard icon={Zap} label="Novos" value={dashboardData.newLeads} color="green" />
-            <StatsCard icon={Thermometer} label="Quentes" value={dashboardData.hotLeads} color="red" />
-            <StatsCard icon={Target} label="Prontos" value={dashboardData.readyToConvert} color="purple" />
-            <StatsCard icon={TrendingUp} label="Score Médio" value={`${dashboardData.averageScore}%`} color="blue" />
-            <StatsCard icon={AlertCircle} label="Atenção" value={dashboardData.needsAttention} color="orange" />
-          </div>
-        </div>
+      {/* Stats Cards */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {renderStatsCards()}
       </div>
 
-      {/* Conteúdo Principal */}
-      <div className="container mx-auto px-4 py-6">
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
         <AnimatePresence mode="wait">
           {viewMode === 'dashboard' && (
             <motion.div
@@ -489,12 +470,11 @@ const LeadsPage = () => {
               className="space-y-6"
             >
               <div className="text-center py-12">
-                <div className="text-6xl mb-4">🎯</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  {dashboardData.total === 0 ? 'Nenhum Lead Ainda' : `${dashboardData.total} Leads no Sistema`}
-                </h3>
+                <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                  {dashboardData.total === 0 ? 'Comece Agora!' : 'Dashboard Completo'}
+                </h2>
                 <p className="text-gray-600 mb-6">
-                  {dashboardData.total === 0 
+                  {dashboardData.total === 0
                     ? 'Comece criando seu primeiro lead para ver o sistema em ação'
                     : 'Dashboard com insights será implementado aqui'
                   }
@@ -525,7 +505,30 @@ const LeadsPage = () => {
                     </h3>
                     <div className="space-y-3">
                       {statusLeads.map((lead) => (
-                        <LeadCard key={lead.id} lead={lead} variant="kanban" />
+                        <div
+                          key={lead.id}
+                          className="bg-white rounded-lg p-3 shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+                          onClick={() => handleViewLead(lead)}
+                        >
+                          <h4 className="font-medium text-gray-900 text-sm">{lead.name}</h4>
+                          <p className="text-xs text-gray-600 mt-1">
+                            {lead.email} • {lead.phone}
+                          </p>
+                          {lead.score && (
+                            <div className="mt-2">
+                              <div className="flex justify-between text-xs">
+                                <span>Score</span>
+                                <span>{lead.score}%</span>
+                              </div>
+                              <div className="w-full bg-gray-200 rounded-full h-1 mt-1">
+                                <div
+                                  className="bg-blue-600 h-1 rounded-full"
+                                  style={{ width: `${lead.score}%` }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -543,18 +546,68 @@ const LeadsPage = () => {
               className="space-y-4"
             >
               {leads?.map((lead) => (
-                <LeadCard key={lead.id} lead={lead} variant="list" />
+                <div
+                  key={lead.id}
+                  className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 cursor-pointer hover:shadow-md transition-shadow"
+                  onClick={() => handleViewLead(lead)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-medium text-gray-900">{lead.name}</h3>
+                      <p className="text-sm text-gray-600">{lead.email} • {lead.phone}</p>
+                      <div className="flex items-center gap-4 mt-2">
+                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          {lead.status || 'novo'}
+                        </span>
+                        {lead.score && (
+                          <span className="text-xs text-gray-600">
+                            Score: {lead.score}%
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCall(lead);
+                        }}
+                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        <Phone className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEmail(lead);
+                        }}
+                        className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                      >
+                        <Mail className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleWhatsApp(lead);
+                        }}
+                        className="p-2 text-gray-400 hover:text-green-600 transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ))}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
 
-      {/* Modal REAL - FUNCIONANDO */}
+      {/* Modal */}
       <LeadModal
         isOpen={showModal}
         onClose={handleModalClose}
-        lead={selectedLeadForModal}
+        lead={selectedLead}
         mode={modalMode}
         onLeadCreate={handleLeadCreate}
         onLeadUpdate={handleLeadUpdate}
@@ -576,39 +629,3 @@ const LeadsPage = () => {
 };
 
 export default LeadsPage;
-
-/*
-🎯 LEADSPAGE.JSX - ERRO setSelectedLead CORRIGIDO!
-
-✅ CORREÇÕES CRÍTICAS APLICADAS:
-1. ✅ REMOVIDO: selectLead e clearSelection do useLeads
-2. ✅ USADO APENAS: selectedLeadForModal state local
-3. ✅ HANDLERS CORRIGIDOS: Todos usam setSelectedLeadForModal
-4. ✅ IMPORT LIMPO: Removidas funções não utilizadas do useLeads
-5. ✅ ESTADO CONSISTENTE: Apenas selectedLeadForModal para modal
-6. ✅ ERRO LINHA 209: Eliminado completamente
-
-🔧 PRINCIPAIS MUDANÇAS:
-- Removido selectLead, clearSelection do destructuring
-- Todos handlers usam setSelectedLeadForModal
-- Estado do modal gerenciado localmente
-- Imports limpos e organizados
-- Zero referências a setSelectedLead
-
-🎯 RESULTADO ESPERADO:
-- ✅ Erro linha 209 desaparece
-- ✅ Botão "Novo Lead" funciona
-- ✅ Modal abre/fecha corretamente
-- ✅ View/Edit lead funcionam
-- ✅ Sistema completamente funcional
-
-📏 MÉTRICAS:
-- Arquivo: 450 linhas ✅ (<700)
-- Erro eliminado ✅ 
-- Estado consistente ✅
-- Modal integrado corretamente ✅
-
-🚀 APLICAR AGORA:
-Substituir LeadsPage.jsx com este código
-Erro deve desaparecer imediatamente!
-*/
