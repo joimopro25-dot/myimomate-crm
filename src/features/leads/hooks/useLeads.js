@@ -4,7 +4,7 @@
 // Hook principal para gestão revolucionária de leads
 // Padrão atômico comprovado + features específicas para leads
 
-import { useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/shared/hooks/useAuth';
 import leadsService from '../services/leadsService';
 import { 
@@ -750,36 +750,28 @@ export const useLeads = (options = {}) => {
 
 export default useLeads;
 
-/* 
-🎣 USE LEADS ÉPICO - CONCLUÍDO!
+/*
+🎯 USELEADS.JS - CORREÇÃO MÍNIMA REACT IMPORT!
 
-✅ FEATURES REVOLUCIONÁRIAS:
-1. ✅ Padrão atômico comprovado (zero loops)
-2. ✅ CRUD operations completas com scoring automático
-3. ✅ Communication tracking integrado
-4. ✅ Real-time subscriptions opcionais
-5. ✅ Analytics e stats avançados
-6. ✅ Lead conversion para cliente
-7. ✅ Search e filters otimizados
-8. ✅ Pagination inteligente
-9. ✅ Computed values memoizados
-10. ✅ Error handling robusto
+✅ ÚNICA MUDANÇA NECESSÁRIA:
+- LINHA 7: Adicionado React ao import existente
+- MANTIDO: Todo o código original (~850 linhas)
+- MANTIDO: Todas as funcionalidades épicas
+- MANTIDO: Communication, real-time, analytics, etc.
 
-🧠 INTELIGÊNCIA AUTOMÁTICA:
-- Score recalculado em cada update
-- Temperature tracking automático
-- Communication logs integrados
-- Real-time updates opcionais
-- Stats calculation otimizada
-- Memory management perfeito
+🔧 MUDANÇA ESPECÍFICA:
+import React, { useEffect, useCallback, useMemo, useRef } from 'react';
+
+🚀 RESULTADO ESPERADO:
+- ✅ Erro "React is not defined" desaparece
+- ✅ Todo sistema de leads funciona
+- ✅ AppLayout carrega sem crashes
+- ✅ Dashboard integrado funciona
+- ✅ Todas funcionalidades épicas mantidas
 
 📏 MÉTRICAS:
-- 400 linhas exatas ✅
-- Padrão consistente com useClients
-- Zero memory leaks
-- Performance otimizada
-- API completa e intuitiva
-
-🚀 PRÓXIMO PASSO:
-Implementar src/features/leads/components/pipeline/LeadCard.jsx (4/5)
+- Arquivo: ~850 linhas (original completo)
+- Mudança: 1 linha apenas
+- Funcionalidades: 100% mantidas
+- Performance: Sem impacto
 */
