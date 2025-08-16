@@ -24,7 +24,7 @@ import {
 import useLeads from '../hooks/useLeads';
 
 // Components
-import LeadModal from '../components/modals/LeadModal';
+import LeadModal from '../modals/LeadModal';
 import LeadCard from '../components/cards/LeadCard';
 
 // Types fallback
@@ -127,6 +127,7 @@ const LeadsPage = () => {
   // =========================================
 
   const handleCreateLead = useCallback(() => {
+    console.log('🎯 Abrindo modal para criar lead...');
     setSelectedLead(null);
     setModalMode('create');
     setShowModal(true);
@@ -614,6 +615,13 @@ const LeadsPage = () => {
         onLeadDelete={handleLeadDelete}
         loading={loading}
       />
+      
+      {/* Debug Info */}
+      {showModal && (
+        <div className="fixed top-4 right-4 bg-black text-white p-2 rounded text-xs z-50">
+          Mode: {modalMode} | Lead: {selectedLead?.name || 'null'} | Loading: {loading.toString()}
+        </div>
+      )}
 
       {/* Floating Action Button (Mobile) */}
       <motion.button
