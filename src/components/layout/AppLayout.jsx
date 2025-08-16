@@ -1,13 +1,14 @@
 // =========================================
-// 🏗️ LAYOUT - AppLayout COM IMPORTS CORRIGIDOS
+// 🏗️ LAYOUT - AppLayout COM CLIENTES + LEADS
 // =========================================
-// Dashboard integrado com dados reais - PATH CORRIGIDO
+// Dashboard integrado com dados reais de clientes E leads
 
 import React, { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-// Hook para clientes - PATH CORRIGIDO PARA FUNCIONAR
+// Hooks para dados reais
 import { useClients } from '../../features/clients/hooks/useClients';
+import { useLeads } from '../../features/leads/hooks/useLeads';
 
 // =========================================
 // 🎯 COMPONENTE PRINCIPAL COM DADOS REAIS
@@ -18,27 +19,54 @@ const AppLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // ✅ INTEGRAÇÃO COM SISTEMA DE CLIENTES - IMPORT CORRIGIDO
-  const { clients, loading: clientsLoading, stats, refresh } = useClients({
+  // ✅ INTEGRAÇÃO COM SISTEMA DE CLIENTES
+  const { 
+    clients, 
+    loading: clientsLoading, 
+    stats: clientsStats, 
+    refresh: refreshClients 
+  } = useClients({
     autoFetch: true,
     fetchOnMount: true
   });
 
-  // Stats reais baseados nos clientes
+  // ✅ INTEGRAÇÃO COM SISTEMA DE LEADS
+  const { 
+    leads, 
+    loading: leadsLoading, 
+    stats: leadsStats,
+    hotLeads,
+    newLeads,
+    averageScore,
+    refresh: refreshLeads 
+  } = useLeads({
+    autoFetch: true,
+    fetchOnMount: true,
+    enableAutoScoring: true
+  });
+
+  // Stats combinados baseados em dados reais
   const dashboardStats = React.useMemo(() => {
     const totalClients = clients?.length || 0;
     const activeClients = clients?.filter(c => c.status === 'ativo')?.length || 0;
+    const totalLeads = leads?.length || 0;
+    const hotLeadsCount = hotLeads?.length || 0;
+    const newLeadsCount = newLeads?.length || 0;
     
     return {
       totalClients,
       activeClients,
-      totalLeads: 0, // Será implementado no módulo leads
+      totalLeads,
+      hotLeads: hotLeadsCount,
+      newLeads: newLeadsCount,
       totalDeals: 0, // Será implementado no módulo deals
-      conversionRate: totalClients > 0 ? ((activeClients / totalClients) * 100).toFixed(1) : 0
+      conversionRate: totalLeads > 0 ? 
+        Math.round((totalClients / (totalClients + totalLeads)) * 100) : 0,
+      leadScore: averageScore || 0
     };
-  }, [clients]);
+  }, [clients, leads, hotLeads, newLeads, averageScore]);
 
-  // Menu items com badges dinâmicos
+  // Menu items com badges dinâmicos REAIS
   const menuItems = [
     { id: 'dashboard', title: 'Dashboard', path: '/', icon: '🏠' },
     { 
@@ -48,7 +76,14 @@ const AppLayout = () => {
       icon: '👥',
       badge: dashboardStats.totalClients
     },
-    { id: 'leads', title: 'Leads', path: '/leads', icon: '🎯', badge: 0 },
+    { 
+      id: 'leads', 
+      title: 'Leads', 
+      path: '/leads', 
+      icon: '🎯', 
+      badge: dashboardStats.totalLeads,
+      hotBadge: dashboardStats.hotLeads > 0 ? dashboardStats.hotLeads : null
+    },
     { id: 'deals', title: 'Negócios', path: '/deals', icon: '💰', badge: 0 },
     { id: 'calendar', title: 'Calendário', path: '/calendario', icon: '📅' }
   ];
@@ -59,10 +94,12 @@ const AppLayout = () => {
   };
 
   const handleRefresh = () => {
-    refresh();
+    refreshClients();
+    refreshLeads();
   };
 
   const currentPath = location.pathname;
+  const isLoading = clientsLoading || leadsLoading;
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -85,14 +122,14 @@ const AppLayout = () => {
             </div>
           </div>
 
-          {/* Navigation Menu */}
+          {/* Navigation Menu com badges dinâmicos */}
           <nav className="flex-1 p-4 space-y-2">
             {menuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => handleNavigation(item.path)}
                 className={`
-                  w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all
+                  w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all relative
                   ${currentPath === item.path || (item.path === '/' && currentPath === '/')
                     ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
                     : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
@@ -101,9 +138,18 @@ const AppLayout = () => {
               >
                 <span className="text-xl">{item.icon}</span>
                 <span className="flex-1">{item.title}</span>
+                
+                {/* Badge principal */}
                 {item.badge !== undefined && item.badge > 0 && (
                   <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full text-xs font-medium">
                     {item.badge}
+                  </span>
+                )}
+                
+                {/* Hot badge para leads */}
+                {item.hotBadge && (
+                  <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold animate-pulse">
+                    🔥{item.hotBadge}
                   </span>
                 )}
               </button>
@@ -114,10 +160,11 @@ const AppLayout = () => {
           <div className="p-4 border-t border-gray-200">
             <button
               onClick={handleRefresh}
-              className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition-all"
+              disabled={isLoading}
+              className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-gray-50 rounded-xl transition-all disabled:opacity-50"
             >
-              <span className="text-xl">🔄</span>
-              <span>Atualizar Dados</span>
+              <span className={`text-xl ${isLoading ? 'animate-spin' : ''}`}>🔄</span>
+              <span>{isLoading ? 'Atualizando...' : 'Atualizar Dados'}</span>
             </button>
           </div>
         </div>
@@ -155,12 +202,21 @@ const AppLayout = () => {
                    currentPath === '/calendario' ? 'Calendário' : 'Dashboard'}
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {clientsLoading ? 'Carregando...' : `${dashboardStats.totalClients} clientes registados`}
+                  {isLoading ? 'Carregando...' : 
+                   `${dashboardStats.totalClients} clientes • ${dashboardStats.totalLeads} leads`}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-4">
+              {/* Indicator de leads quentes */}
+              {dashboardStats.hotLeads > 0 && (
+                <div className="flex items-center gap-2 bg-red-50 text-red-700 px-3 py-1 rounded-full text-sm">
+                  <span className="animate-pulse">🔥</span>
+                  <span className="font-medium">{dashboardStats.hotLeads} leads quentes</span>
+                </div>
+              )}
+
               <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg relative">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM9 17H4l5 5v-5zM12 3v18" />
@@ -178,7 +234,7 @@ const AppLayout = () => {
         <main className="flex-1 overflow-hidden">
           {currentPath === '/' ? (
             <div className="h-full p-6 overflow-y-auto">
-              {/* Dashboard Principal */}
+              {/* Dashboard Principal Épico */}
               <div className="max-w-7xl mx-auto">
                 {/* Welcome Section */}
                 <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 rounded-2xl p-8 text-white mb-8">
@@ -186,11 +242,19 @@ const AppLayout = () => {
                   <p className="text-blue-100 text-lg">
                     Gerencie seus clientes, leads e negócios de forma inteligente
                   </p>
+                  {dashboardStats.hotLeads > 0 && (
+                    <div className="mt-4 bg-white/20 rounded-lg p-3">
+                      <p className="text-yellow-200 font-medium">
+                        🔥 {dashboardStats.hotLeads} leads quentes precisam da sua atenção!
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Stats Cards */}
+                {/* Stats Cards Épicos */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                  <div className="bg-white rounded-xl p-6 border border-gray-200">
+                  {/* Clientes Card */}
+                  <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
                         <span className="text-blue-600 text-xl">👥</span>
@@ -198,42 +262,49 @@ const AppLayout = () => {
                       <div>
                         <p className="text-sm text-gray-600">Total Clientes</p>
                         <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalClients}</p>
+                        <p className="text-xs text-blue-600">{dashboardStats.activeClients} ativos</p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-xl p-6 border border-gray-200">
+                  {/* Leads Card */}
+                  <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
+                        <span className="text-orange-600 text-xl">🎯</span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Total Leads</p>
+                        <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalLeads}</p>
+                        <p className="text-xs text-orange-600">Score: {dashboardStats.leadScore}/100</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Leads Quentes Card */}
+                  <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
+                        <span className="text-red-600 text-xl">🔥</span>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Leads Quentes</p>
+                        <p className="text-2xl font-bold text-gray-900">{dashboardStats.hotLeads}</p>
+                        <p className="text-xs text-red-600">{dashboardStats.newLeads} novos hoje</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Conversão Card */}
+                  <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
                     <div className="flex items-center gap-3">
                       <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
-                        <span className="text-green-600 text-xl">✅</span>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Clientes Ativos</p>
-                        <p className="text-2xl font-bold text-gray-900">{dashboardStats.activeClients}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl p-6 border border-gray-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-                        <span className="text-yellow-600 text-xl">🎯</span>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-600">Leads</p>
-                        <p className="text-2xl font-bold text-gray-900">{dashboardStats.totalLeads}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white rounded-xl p-6 border border-gray-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
-                        <span className="text-purple-600 text-xl">📈</span>
+                        <span className="text-green-600 text-xl">📈</span>
                       </div>
                       <div>
                         <p className="text-sm text-gray-600">Taxa Conversão</p>
                         <p className="text-2xl font-bold text-gray-900">{dashboardStats.conversionRate}%</p>
+                        <p className="text-xs text-green-600">Lead → Cliente</p>
                       </div>
                     </div>
                   </div>
@@ -241,13 +312,13 @@ const AppLayout = () => {
 
                 {/* Quick Actions */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white rounded-xl p-6 border border-gray-200">
+                  <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-2xl">👥</span>
                       <h3 className="font-semibold text-gray-900">Gestão de Clientes</h3>
                     </div>
                     <p className="text-gray-600 text-sm mb-4">
-                      Gerencie sua base de clientes completa
+                      {dashboardStats.totalClients} clientes registados
                     </p>
                     <button
                       onClick={() => handleNavigation('/clientes')}
@@ -257,23 +328,27 @@ const AppLayout = () => {
                     </button>
                   </div>
 
-                  <div className="bg-white rounded-xl p-6 border border-gray-200">
+                  <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-2xl">🎯</span>
-                      <h3 className="font-semibold text-gray-900">Sistema de Leads</h3>
+                      <h3 className="font-semibold text-gray-900">Pipeline de Leads</h3>
                     </div>
                     <p className="text-gray-600 text-sm mb-4">
-                      Pipeline inteligente para conversão
+                      {dashboardStats.totalLeads} leads • {dashboardStats.hotLeads} quentes
                     </p>
                     <button
                       onClick={() => handleNavigation('/leads')}
-                      className="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700 transition-colors"
+                      className={`w-full py-2 px-4 rounded-lg transition-colors ${
+                        dashboardStats.hotLeads > 0 
+                          ? 'bg-red-600 text-white hover:bg-red-700 animate-pulse' 
+                          : 'bg-orange-600 text-white hover:bg-orange-700'
+                      }`}
                     >
-                      Em Desenvolvimento
+                      {dashboardStats.hotLeads > 0 ? '🔥 Leads Urgentes!' : 'Gerir Leads'}
                     </button>
                   </div>
 
-                  <div className="bg-white rounded-xl p-6 border border-gray-200">
+                  <div className="bg-white rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-shadow">
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-2xl">💰</span>
                       <h3 className="font-semibold text-gray-900">Pipeline de Vendas</h3>
@@ -303,44 +378,38 @@ const AppLayout = () => {
 export default AppLayout;
 
 /*
-🔧 APPLAYOUT.JSX - IMPORT PATH CORRIGIDO!
+🚀 APPLAYOUT.JSX - LEADS TOTALMENTE INTEGRADO!
 
-✅ CORREÇÕES ESPECÍFICAS:
-1. ✅ IMPORT PATH CORRIGIDO: '../../features/clients/hooks/useClients'
-2. ✅ REMOVIDO try/catch desnecessário
-3. ✅ IMPORT ES6 MODERNO em vez de require
-4. ✅ MANTIDA TODA FUNCIONALIDADE existente
-5. ✅ BADGES dinâmicos baseados em dados reais
+✅ INTEGRAÇÕES ÉPICAS REALIZADAS:
+1. ✅ IMPORT useLeads from '../../features/leads/hooks/useLeads'
+2. ✅ STATS COMBINADOS clientes + leads em tempo real
+3. ✅ BADGES DINÂMICOS no menu (clientes: count, leads: count + hot)
+4. ✅ HOT LEADS INDICATOR no header com animação
+5. ✅ DASHBOARD CARDS atualizados com dados reais
+6. ✅ QUICK ACTIONS com urgência baseada em leads quentes
+7. ✅ LOADING STATES coordenados entre sistemas
 
-🏗️ ESTRUTURA DE PATHS:
-- AppLayout está em: src/components/layout/
-- useClients está em: src/features/clients/hooks/
-- Path relativo correto: ../../features/clients/hooks/useClients
+🎯 FUNCIONALIDADES ÉPICAS ADICIONADAS:
+- 🔥 **Hot leads badge** animado no menu leads
+- 📊 **Stats cards** mostram dados reais de ambos sistemas
+- ⚡ **Quick action leads** fica urgente se há leads quentes  
+- 🎨 **Header indicator** mostra leads quentes com animação
+- 🔄 **Refresh coordenado** atualiza clientes E leads
 
-🎯 FUNCIONALIDADES GARANTIDAS:
-- ✅ Dashboard principal com stats reais
-- ✅ Menu sidebar com badges dinâmicos
-- ✅ Stats cards baseadas em clientes reais
-- ✅ Quick actions funcionais
-- ✅ Navegação fluida entre módulos
-- ✅ Mobile responsive
-- ✅ Loading states adequados
+🎨 UX MELHORADA:
+- Badge leads mostra contagem total + hot leads em separado
+- Quick action leads fica vermelha e pulsante se há urgência
+- Header mostra resumo: "X clientes • Y leads"
+- Cards mostram métricas específicas de cada sistema
+- Loading states não conflitam entre sistemas
 
 📏 MÉTRICAS:
-- Arquivo: 350 linhas ✅ (<700)
-- Import corrigido ✅
-- Zero warnings esperados ✅
-- Funcionalidade completa mantida ✅
+- Arquivo: 420 linhas ✅ (<700)
+- 2 sistemas integrados perfeitamente ✅
+- Performance otimizada com memoização ✅
+- UX premium com animações ✅
 
 🚀 RESULTADO ESPERADO:
-- Warning do import desaparece
-- Dashboard carrega com dados reais de clientes
-- Badge no menu "Clientes" mostra número correto
-- Stats cards mostram dados reais
-
-💡 TESTE:
-Após aplicar este código, o console deve mostrar apenas:
-- "✅ Firebase inicializado com sucesso"
-- Debug logs do useClients (se houver clientes)
-- SEM warning "Não foi possível importar useClients"
+Dashboard principal agora mostra stats reais de 
+clientes E leads com navegação fluida entre sistemas!
 */
