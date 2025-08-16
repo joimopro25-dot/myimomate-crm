@@ -1,727 +1,695 @@
 // =========================================
-// 📊 COMPONENT - LeadsDashboard ÉPICO
+// 📊 COMPONENT - LeadsDashboard INTELIGENTE
 // =========================================
-// Dashboard revolucionário que transforma dados em insights acionáveis
-// Interface viciante que acelera conversões
+// Dashboard específico do módulo Leads com intelligence
+// Implementando arquivo LeadsDashboard.jsx (2/4)
+// Arquivo: src/features/leads/components/dashboard/LeadsDashboard.jsx
 
 import React, { useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
-  Users, 
+  Plus, 
   TrendingUp, 
-  Thermometer,
-  Target,
-  Zap,
-  Clock,
-  Calendar,
-  Phone,
-  Mail,
-  MessageCircle,
-  ArrowRight,
-  Flame,
-  Snowflake,
-  Star,
-  AlertCircle,
-  Plus,
-  RefreshCw,
-  Eye,
-  ChevronRight,
   TrendingDown,
-  Coffee,
+  Target, 
+  Users, 
+  Phone, 
+  Mail, 
+  MessageSquare,
+  Calendar,
+  Clock,
+  Star,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle,
+  Eye,
+  Edit,
+  Zap,
+  Fire,
+  Thermometer,
+  BarChart3,
+  PieChart,
   Activity,
-  BarChart3
+  Briefcase,
+  MapPin,
+  Euro,
+  UserCheck,
+  PhoneCall
 } from 'lucide-react';
 
-// Components
-import LeadCard from '../pipeline/LeadCard';
+// Utils
+import { formatDate, formatCurrency, formatPercentage } from '@/shared/utils/formatters';
 
-// Types e utils
-import {
-  LeadStatus,
-  LeadStatusLabels,
-  LeadTemperature,
-  LeadTemperatureLabels,
-  LeadSource,
-  LeadSourceLabels
-} from '../../types/index';
+// Types
+import { LeadStatus, LeadTemperature } from '../../types/index';
 
 /**
- * LeadsDashboard - Dashboard revolucionário para leads
- * Transforma dados em insights acionáveis e acelera conversões
+ * LeadsDashboard - Dashboard inteligente com analytics e quick actions
+ * Features: Stats cards, recent leads, hot leads, quick actions, trends
  */
 const LeadsDashboard = ({
   leads = [],
   stats = {},
   loading = false,
-  onLeadView,
-  onLeadEdit,
+  onCreateLead,
+  onEditLead,
+  onViewLead,
   onLeadCall,
   onLeadEmail,
-  onLeadWhatsApp,
-  onLeadConvert,
-  onCreateLead,
-  onRefresh,
-  className = ''
+  onLeadWhatsapp,
+  onRefresh
 }) => {
-
   // =========================================
-  // 🧠 COMPUTED INTELLIGENCE DATA
+  // 🧠 COMPUTED VALUES
   // =========================================
 
-  const intelligenceData = useMemo(() => {
-    if (!leads.length) return {};
-
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const thisWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    // Segmentação por temperatura
-    const hotLeads = leads.filter(l => 
-      l.temperature === LeadTemperature.FERVENDO || 
-      l.temperature === LeadTemperature.QUENTE
-    );
+  const computedStats = useMemo(() => {
+    const total = leads.length;
+    const hot = leads.filter(l => l.temperature === 'quente' || l.temperature === 'fervendo').length;
+    const new30Days = leads.filter(l => {
+      const created = new Date(l.createdAt || l.dataCaptura);
+      const now = new Date();
+      const diffDays = Math.floor((now - created) / (1000 * 60 * 60 * 24));
+      return diffDays <= 30;
+    }).length;
     
-    const coldLeads = leads.filter(l => 
-      l.temperature === LeadTemperature.FRIO || 
-      l.temperature === LeadTemperature.GELADO
-    );
+    const converted = leads.filter(l => l.status === 'convertido').length;
+    const conversionRate = total > 0 ? (converted / total) * 100 : 0;
+    
+    const averageScore = total > 0 
+      ? leads.reduce((sum, lead) => sum + (lead.score || 0), 0) / total 
+      : 0;
 
-    // Leads que precisam de atenção (7+ dias sem contacto)
-    const needsAttention = leads.filter(l => {
-      if (!l.lastContact) return true;
-      const daysSince = Math.floor((now - new Date(l.lastContact)) / (1000 * 60 * 60 * 24));
-      return daysSince >= 7;
-    });
+    const byStatus = leads.reduce((acc, lead) => {
+      const status = lead.status || 'novo';
+      acc[status] = (acc[status] || 0) + 1;
+      return acc;
+    }, {});
 
-    // Leads prontos para converter (score >= 80)
-    const readyToConvert = leads.filter(l => (l.score || 0) >= 80);
+    const byTemperature = leads.reduce((acc, lead) => {
+      const temp = lead.temperature || 'frio';
+      acc[temp] = (acc[temp] || 0) + 1;
+      return acc;
+    }, {});
 
-    // Novos esta semana
-    const newThisWeek = leads.filter(l => {
-      return l.createdAt && new Date(l.createdAt) >= thisWeek;
-    });
-
-    // Por fonte de leads
-    const topSources = leads.reduce((acc, lead) => {
-      const source = lead.fonte || 'unknown';
+    const bySource = leads.reduce((acc, lead) => {
+      const source = lead.fonte || 'desconhecido';
       acc[source] = (acc[source] || 0) + 1;
       return acc;
     }, {});
 
-    // Conversion trends (mock data - seria calculado pelo backend)
-    const conversionTrend = stats.conversionRate > 15 ? 'up' : 
-                           stats.conversionRate < 10 ? 'down' : 'stable';
-
     return {
-      hotLeads,
-      coldLeads,
-      needsAttention,
-      readyToConvert,
-      newThisWeek,
-      topSources,
-      conversionTrend,
-      
-      // Métricas calculadas
-      averageScore: leads.length > 0 ? 
-        Math.round(leads.reduce((sum, l) => sum + (l.score || 0), 0) / leads.length) : 0,
-      
-      hotPercentage: leads.length > 0 ? 
-        Math.round((hotLeads.length / leads.length) * 100) : 0,
-      
-      attentionPercentage: leads.length > 0 ? 
-        Math.round((needsAttention.length / leads.length) * 100) : 0
+      total,
+      hot,
+      new30Days,
+      converted,
+      conversionRate,
+      averageScore,
+      byStatus,
+      byTemperature,
+      bySource
     };
-  }, [leads, stats]);
+  }, [leads]);
 
-  // =========================================
-  // 📞 ACTION HANDLERS
-  // =========================================
+  const recentLeads = useMemo(() => {
+    return [...leads]
+      .sort((a, b) => new Date(b.createdAt || b.dataCaptura) - new Date(a.createdAt || a.dataCaptura))
+      .slice(0, 5);
+  }, [leads]);
 
-  const handleQuickAction = useCallback((action, leads) => {
-    switch (action) {
-      case 'view_hot':
-        // Filtrar e mostrar apenas leads quentes
-        console.log('Filtrar leads quentes:', leads);
-        break;
-      case 'attention_needed':
-        // Mostrar leads que precisam atenção
-        console.log('Leads precisam atenção:', leads);
-        break;
-      case 'ready_convert':
-        // Mostrar leads prontos para converter
-        console.log('Leads prontos converter:', leads);
-        break;
-      default:
-        console.log('Ação:', action);
+  const hotLeads = useMemo(() => {
+    return [...leads]
+      .filter(lead => lead.temperature === 'quente' || lead.temperature === 'fervendo')
+      .sort((a, b) => (b.score || 0) - (a.score || 0))
+      .slice(0, 6);
+  }, [leads]);
+
+  const urgentActions = useMemo(() => {
+    const actions = [];
+    
+    // Leads sem contacto há mais de 3 dias
+    const staleLeads = leads.filter(lead => {
+      if (!lead.lastContact) return true;
+      const daysSince = Math.floor((Date.now() - new Date(lead.lastContact)) / (1000 * 60 * 60 * 24));
+      return daysSince > 3;
+    });
+
+    if (staleLeads.length > 0) {
+      actions.push({
+        type: 'stale_leads',
+        title: `${staleLeads.length} leads sem contacto`,
+        description: 'Há mais de 3 dias',
+        icon: Clock,
+        color: 'orange',
+        count: staleLeads.length,
+        leads: staleLeads.slice(0, 3)
+      });
     }
-  }, []);
+
+    // Leads quentes sem follow-up
+    const hotNoFollowup = leads.filter(lead => 
+      (lead.temperature === 'quente' || lead.temperature === 'fervendo') &&
+      lead.status === 'novo'
+    );
+
+    if (hotNoFollowup.length > 0) {
+      actions.push({
+        type: 'hot_leads',
+        title: `${hotNoFollowup.length} leads quentes`,
+        description: 'Precisam de follow-up urgente',
+        icon: Fire,
+        color: 'red',
+        count: hotNoFollowup.length,
+        leads: hotNoFollowup.slice(0, 3)
+      });
+    }
+
+    // Leads interessados para converter
+    const readyToConvert = leads.filter(lead => 
+      lead.status === 'interessado' && 
+      (lead.score || 0) > 70
+    );
+
+    if (readyToConvert.length > 0) {
+      actions.push({
+        type: 'ready_convert',
+        title: `${readyToConvert.length} leads prontos`,
+        description: 'Para conversão em clientes',
+        icon: UserCheck,
+        color: 'green',
+        count: readyToConvert.length,
+        leads: readyToConvert.slice(0, 3)
+      });
+    }
+
+    return actions;
+  }, [leads]);
 
   // =========================================
-  // 🎨 RENDER - EMPTY STATE
+  // 📋 HANDLERS
+  // =========================================
+
+  const handleQuickCall = useCallback((lead) => {
+    console.log('📞 Quick call para:', lead.nome);
+    onLeadCall?.(lead);
+  }, [onLeadCall]);
+
+  const handleQuickEmail = useCallback((lead) => {
+    console.log('📧 Quick email para:', lead.nome);
+    onLeadEmail?.(lead);
+  }, [onLeadEmail]);
+
+  const handleQuickWhatsapp = useCallback((lead) => {
+    console.log('💬 Quick WhatsApp para:', lead.nome);
+    onLeadWhatsapp?.(lead);
+  }, [onLeadWhatsapp]);
+
+  // =========================================
+  // 🎨 RENDER HELPERS
+  // =========================================
+
+  const renderTemperatureIcon = (temperature) => {
+    switch (temperature) {
+      case 'fervendo': return <Fire className="w-4 h-4 text-red-600" />;
+      case 'quente': return <Thermometer className="w-4 h-4 text-orange-500" />;
+      case 'morno': return <Thermometer className="w-4 h-4 text-yellow-500" />;
+      case 'frio': return <Thermometer className="w-4 h-4 text-blue-500" />;
+      default: return <Thermometer className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const renderScoreBadge = (score) => {
+    const scoreValue = score || 0;
+    let colorClass = 'bg-gray-100 text-gray-600';
+    
+    if (scoreValue >= 80) colorClass = 'bg-green-100 text-green-800';
+    else if (scoreValue >= 60) colorClass = 'bg-yellow-100 text-yellow-800';
+    else if (scoreValue >= 40) colorClass = 'bg-orange-100 text-orange-800';
+    else if (scoreValue > 0) colorClass = 'bg-red-100 text-red-800';
+
+    return (
+      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${colorClass}`}>
+        <Star className="w-3 h-3 mr-1" />
+        {scoreValue.toFixed(0)}
+      </span>
+    );
+  };
+
+  // =========================================
+  // 🎨 RENDER
   // =========================================
 
   if (loading) {
-    return <DashboardSkeleton />;
-  }
-
-  if (!leads.length) {
     return (
-      <EmptyDashboard 
-        onCreateLead={onCreateLead}
-        className={className}
-      />
+      <div className="p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-gray-100 animate-pulse rounded-lg h-24"></div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-gray-100 animate-pulse rounded-lg h-64"></div>
+          ))}
+        </div>
+      </div>
     );
   }
 
-  // =========================================
-  // 🎨 RENDER - MAIN DASHBOARD
-  // =========================================
-
   return (
-    <div className={`space-y-6 ${className}`}>
-      {/* Header com refresh */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Dashboard de Leads</h2>
-          <p className="text-gray-600">
-            {leads.length} leads • {intelligenceData.hotLeads?.length || 0} quentes • 
-            Score médio {intelligenceData.averageScore}%
-          </p>
-        </div>
-
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onRefresh}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+    <div className="p-6 space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Total Leads */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white"
         >
-          <RefreshCw className="w-4 h-4" />
-          Atualizar
-        </motion.button>
-      </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm">Total Leads</p>
+              <p className="text-3xl font-bold">{computedStats.total}</p>
+              <p className="text-blue-100 text-xs mt-1">
+                {computedStats.new30Days} novos (30 dias)
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-blue-400 rounded-lg flex items-center justify-center">
+              <Users className="w-6 h-6" />
+            </div>
+          </div>
+        </motion.div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatsCard
-          icon={Thermometer}
-          title="Leads Quentes"
-          value={intelligenceData.hotLeads?.length || 0}
-          subtitle={`${intelligenceData.hotPercentage}% do total`}
-          color="red"
-          trend={intelligenceData.conversionTrend}
-          onClick={() => handleQuickAction('view_hot', intelligenceData.hotLeads)}
-        />
-        
-        <StatsCard
-          icon={Target}
-          title="Prontos Converter"
-          value={intelligenceData.readyToConvert?.length || 0}
-          subtitle="Score ≥ 80%"
-          color="green"
-          onClick={() => handleQuickAction('ready_convert', intelligenceData.readyToConvert)}
-        />
-        
-        <StatsCard
-          icon={AlertCircle}
-          title="Precisam Atenção"
-          value={intelligenceData.needsAttention?.length || 0}
-          subtitle={`${intelligenceData.attentionPercentage}% do total`}
-          color="orange"
-          onClick={() => handleQuickAction('attention_needed', intelligenceData.needsAttention)}
-        />
-        
-        <StatsCard
-          icon={TrendingUp}
-          title="Novos Semana"
-          value={intelligenceData.newThisWeek?.length || 0}
-          subtitle="Últimos 7 dias"
-          color="blue"
-        />
-      </div>
-
-      {/* Quick Actions Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Leads Quentes */}
-        <QuickActionPanel
-          title="🔥 Leads Fervendo"
-          subtitle="Ação imediata necessária"
-          items={intelligenceData.hotLeads?.slice(0, 5) || []}
-          color="red"
-          onItemClick={onLeadView}
-          onViewAll={() => handleQuickAction('view_hot', intelligenceData.hotLeads)}
-          renderItem={(lead) => (
-            <HotLeadItem 
-              lead={lead}
-              onCall={onLeadCall}
-              onEmail={onLeadEmail}
-              onWhatsApp={onLeadWhatsApp}
-              onView={onLeadView}
-            />
-          )}
-        />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-gradient-to-r from-red-500 to-red-600 rounded-xl p-6 text-white"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-sm">Leads Quentes</p>
+              <p className="text-3xl font-bold">{computedStats.hot}</p>
+              <p className="text-red-100 text-xs mt-1">
+                {((computedStats.hot / computedStats.total) * 100 || 0).toFixed(1)}% do total
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-red-400 rounded-lg flex items-center justify-center">
+              <Fire className="w-6 h-6" />
+            </div>
+          </div>
+        </motion.div>
 
-        {/* Precisam Atenção */}
-        <QuickActionPanel
-          title="⏰ Precisam Atenção"
-          subtitle="Sem contacto há 7+ dias"
-          items={intelligenceData.needsAttention?.slice(0, 5) || []}
-          color="orange"
-          onItemClick={onLeadView}
-          onViewAll={() => handleQuickAction('attention_needed', intelligenceData.needsAttention)}
-          renderItem={(lead) => (
-            <AttentionLeadItem 
-              lead={lead}
-              onCall={onLeadCall}
-              onView={onLeadView}
-            />
-          )}
-        />
+        {/* Score Médio */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm">Score Médio</p>
+              <p className="text-3xl font-bold">{computedStats.averageScore.toFixed(1)}</p>
+              <p className="text-green-100 text-xs mt-1">
+                Qualidade dos leads
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-green-400 rounded-lg flex items-center justify-center">
+              <Target className="w-6 h-6" />
+            </div>
+          </div>
+        </motion.div>
 
-        {/* Prontos para Converter */}
-        <QuickActionPanel
-          title="⭐ Prontos Converter"
-          subtitle="Score alto, ação final"
-          items={intelligenceData.readyToConvert?.slice(0, 5) || []}
-          color="green"
-          onItemClick={onLeadConvert}
-          onViewAll={() => handleQuickAction('ready_convert', intelligenceData.readyToConvert)}
-          renderItem={(lead) => (
-            <ReadyLeadItem 
-              lead={lead}
-              onConvert={onLeadConvert}
-              onView={onLeadView}
-            />
-          )}
-        />
+        {/* Taxa Conversão */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-sm">Taxa Conversão</p>
+              <p className="text-3xl font-bold">{computedStats.conversionRate.toFixed(1)}%</p>
+              <p className="text-purple-100 text-xs mt-1">
+                {computedStats.converted} convertidos
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-purple-400 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+          </div>
+        </motion.div>
       </div>
 
-      {/* Performance Insights */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sources Performance */}
-        <InsightCard
-          title="📍 Performance por Fonte"
-          subtitle="Melhores canais de lead"
+      {/* Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Ações Urgentes */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-white rounded-xl border border-gray-200 p-6"
         >
-          <div className="space-y-3">
-            {Object.entries(intelligenceData.topSources || {})
-              .sort(([,a], [,b]) => b - a)
-              .slice(0, 5)
-              .map(([source, count]) => (
-                <SourceItem 
-                  key={source}
-                  source={source}
-                  count={count}
-                  total={leads.length}
-                />
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              ⚡ Ações Urgentes
+            </h3>
+            <AlertCircle className="w-5 h-5 text-orange-500" />
+          </div>
+
+          {urgentActions.length === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-3" />
+              <p className="text-gray-600">Todas as ações em dia!</p>
+              <p className="text-sm text-gray-500 mt-1">Excelente trabalho</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {urgentActions.map((action, index) => (
+                <div
+                  key={action.type}
+                  className={`p-4 rounded-lg border-l-4 ${
+                    action.color === 'red' ? 'border-red-500 bg-red-50' :
+                    action.color === 'orange' ? 'border-orange-500 bg-orange-50' :
+                    'border-green-500 bg-green-50'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <action.icon className={`w-5 h-5 mt-0.5 ${
+                      action.color === 'red' ? 'text-red-600' :
+                      action.color === 'orange' ? 'text-orange-600' :
+                      'text-green-600'
+                    }`} />
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{action.title}</p>
+                      <p className="text-sm text-gray-600">{action.description}</p>
+                      {action.leads.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {action.leads.map(lead => (
+                            <div key={lead.id} className="text-xs text-gray-500">
+                              • {lead.nome} ({lead.telefone})
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-gray-400" />
+                  </div>
+                </div>
               ))}
-          </div>
-        </InsightCard>
-
-        {/* Temperature Distribution */}
-        <InsightCard
-          title="🌡️ Distribuição Temperatura"
-          subtitle="Estado atual do pipeline"
-        >
-          <TemperatureChart leads={leads} />
-        </InsightCard>
-      </div>
-
-      {/* Recent Activity */}
-      <RecentActivity 
-        leads={leads.slice(0, 10)}
-        onLeadView={onLeadView}
-      />
-    </div>
-  );
-};
-
-// =========================================
-// 🎨 SUB-COMPONENTS
-// =========================================
-
-const StatsCard = ({ icon: Icon, title, value, subtitle, color, trend, onClick }) => (
-  <motion.div
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
-    onClick={onClick}
-    className={`
-      p-6 rounded-xl border cursor-pointer transition-all
-      ${color === 'red' ? 'bg-red-50 border-red-200 hover:border-red-300' :
-        color === 'green' ? 'bg-green-50 border-green-200 hover:border-green-300' :
-        color === 'orange' ? 'bg-orange-50 border-orange-200 hover:border-orange-300' :
-        color === 'blue' ? 'bg-blue-50 border-blue-200 hover:border-blue-300' :
-        'bg-gray-50 border-gray-200 hover:border-gray-300'
-      }
-    `}
-  >
-    <div className="flex items-center justify-between">
-      <Icon className={`w-8 h-8 ${
-        color === 'red' ? 'text-red-600' :
-        color === 'green' ? 'text-green-600' :
-        color === 'orange' ? 'text-orange-600' :
-        color === 'blue' ? 'text-blue-600' :
-        'text-gray-600'
-      }`} />
-      
-      {trend && (
-        <div className={`flex items-center ${
-          trend === 'up' ? 'text-green-600' : 
-          trend === 'down' ? 'text-red-600' : 'text-gray-600'
-        }`}>
-          {trend === 'up' ? <TrendingUp className="w-4 h-4" /> :
-           trend === 'down' ? <TrendingDown className="w-4 h-4" /> :
-           <BarChart3 className="w-4 h-4" />}
-        </div>
-      )}
-    </div>
-    
-    <div className="mt-4">
-      <div className="text-3xl font-bold text-gray-900">{value}</div>
-      <div className="text-sm text-gray-600 mt-1">{title}</div>
-      {subtitle && (
-        <div className="text-xs text-gray-500 mt-1">{subtitle}</div>
-      )}
-    </div>
-  </motion.div>
-);
-
-const QuickActionPanel = ({ 
-  title, 
-  subtitle, 
-  items, 
-  color, 
-  onItemClick, 
-  onViewAll, 
-  renderItem 
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-xl border border-gray-200 overflow-hidden"
-  >
-    <div className={`p-4 ${
-      color === 'red' ? 'bg-red-50 border-b border-red-200' :
-      color === 'orange' ? 'bg-orange-50 border-b border-orange-200' :
-      color === 'green' ? 'bg-green-50 border-b border-green-200' :
-      'bg-gray-50 border-b border-gray-200'
-    }`}>
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-semibold text-gray-900">{title}</h3>
-          <p className="text-sm text-gray-600">{subtitle}</p>
-        </div>
-        <span className="text-lg font-bold text-gray-900">{items.length}</span>
-      </div>
-    </div>
-    
-    <div className="max-h-80 overflow-y-auto">
-      {items.length > 0 ? (
-        <>
-          {items.map((item) => (
-            <div key={item.id} className="border-b border-gray-100 last:border-b-0">
-              {renderItem(item)}
             </div>
-          ))}
-          
-          {items.length > 5 && (
-            <button
-              onClick={onViewAll}
-              className="w-full p-3 text-center text-blue-600 hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
-            >
-              Ver todos ({items.length})
-              <ChevronRight className="w-4 h-4" />
-            </button>
           )}
-        </>
-      ) : (
-        <div className="p-6 text-center text-gray-500">
-          <div className="text-4xl mb-2">✨</div>
-          <p>Nenhum lead nesta categoria</p>
-        </div>
-      )}
-    </div>
-  </motion.div>
-);
+        </motion.div>
 
-const HotLeadItem = ({ lead, onCall, onEmail, onWhatsApp, onView }) => (
-  <div className="p-3 hover:bg-gray-50 cursor-pointer transition-colors">
-    <div className="flex items-center justify-between">
-      <div className="flex-1" onClick={() => onView(lead)}>
-        <h4 className="font-medium text-gray-900">{lead.nome}</h4>
-        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-          <Thermometer className="w-4 h-4 text-red-500" />
-          <span>Score: {lead.score}%</span>
-          <span>•</span>
-          <span>{LeadTemperatureLabels[lead.temperature]}</span>
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-1">
-        <button
-          onClick={(e) => { e.stopPropagation(); onCall(lead); }}
-          className="p-1 text-green-600 hover:bg-green-100 rounded"
-          title="Ligar"
+        {/* Leads Recentes */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="bg-white rounded-xl border border-gray-200 p-6"
         >
-          <Phone className="w-4 h-4" />
-        </button>
-        <button
-          onClick={(e) => { e.stopPropagation(); onWhatsApp(lead); }}
-          className="p-1 text-green-600 hover:bg-green-100 rounded"
-          title="WhatsApp"
-        >
-          <MessageCircle className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-const AttentionLeadItem = ({ lead, onCall, onView }) => {
-  const daysSinceContact = lead.lastContact 
-    ? Math.floor((Date.now() - new Date(lead.lastContact)) / (1000 * 60 * 60 * 24))
-    : null;
-
-  return (
-    <div className="p-3 hover:bg-gray-50 cursor-pointer transition-colors">
-      <div className="flex items-center justify-between">
-        <div className="flex-1" onClick={() => onView(lead)}>
-          <h4 className="font-medium text-gray-900">{lead.nome}</h4>
-          <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-            <Clock className="w-4 h-4 text-orange-500" />
-            <span>
-              {daysSinceContact ? `${daysSinceContact} dias` : 'Nunca contactado'}
-            </span>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              🕒 Recentes
+            </h3>
+            <button
+              onClick={onCreateLead}
+              className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              + Novo Lead
+            </button>
           </div>
-        </div>
-        
-        <button
-          onClick={(e) => { e.stopPropagation(); onCall(lead); }}
-          className="p-2 bg-orange-100 text-orange-600 hover:bg-orange-200 rounded-lg transition-colors"
-          title="Ligar agora"
-        >
-          <Phone className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  );
-};
 
-const ReadyLeadItem = ({ lead, onConvert, onView }) => (
-  <div className="p-3 hover:bg-gray-50 cursor-pointer transition-colors">
-    <div className="flex items-center justify-between">
-      <div className="flex-1" onClick={() => onView(lead)}>
-        <h4 className="font-medium text-gray-900">{lead.nome}</h4>
-        <div className="flex items-center gap-2 text-sm text-gray-600 mt-1">
-          <Star className="w-4 h-4 text-green-500" />
-          <span>Score: {lead.score}%</span>
-          <span>•</span>
-          <span className="text-green-600 font-medium">Pronto</span>
-        </div>
-      </div>
-      
-      <button
-        onClick={(e) => { e.stopPropagation(); onConvert(lead); }}
-        className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded-lg transition-colors text-sm font-medium"
-      >
-        Converter
-      </button>
-    </div>
-  </div>
-);
-
-const InsightCard = ({ title, subtitle, children }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-xl border border-gray-200 p-6"
-  >
-    <div className="mb-4">
-      <h3 className="font-semibold text-gray-900">{title}</h3>
-      <p className="text-sm text-gray-600">{subtitle}</p>
-    </div>
-    {children}
-  </motion.div>
-);
-
-const SourceItem = ({ source, count, total }) => {
-  const percentage = Math.round((count / total) * 100);
-  
-  return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-gray-900">
-          {LeadSourceLabels[source] || source}
-        </span>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="w-20 bg-gray-200 rounded-full h-2">
-          <div 
-            className="bg-blue-500 h-2 rounded-full"
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
-        <span className="text-sm text-gray-600 w-12 text-right">
-          {count} ({percentage}%)
-        </span>
-      </div>
-    </div>
-  );
-};
-
-const TemperatureChart = ({ leads }) => {
-  const distribution = leads.reduce((acc, lead) => {
-    const temp = lead.temperature || LeadTemperature.FRIO;
-    acc[temp] = (acc[temp] || 0) + 1;
-    return acc;
-  }, {});
-
-  const total = leads.length;
-
-  return (
-    <div className="space-y-3">
-      {Object.entries(LeadTemperatureLabels).map(([temp, label]) => {
-        const count = distribution[temp] || 0;
-        const percentage = total > 0 ? Math.round((count / total) * 100) : 0;
-        
-        const getColor = () => {
-          switch (temp) {
-            case LeadTemperature.FERVENDO: return 'bg-red-500';
-            case LeadTemperature.QUENTE: return 'bg-orange-500';
-            case LeadTemperature.MORNO: return 'bg-yellow-500';
-            case LeadTemperature.FRIO: return 'bg-blue-500';
-            case LeadTemperature.GELADO: return 'bg-slate-500';
-            default: return 'bg-gray-500';
-          }
-        };
-
-        return (
-          <div key={temp} className="flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-900">{label}</span>
-            <div className="flex items-center gap-3">
-              <div className="w-20 bg-gray-200 rounded-full h-2">
-                <div 
-                  className={`h-2 rounded-full ${getColor()}`}
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-              <span className="text-sm text-gray-600 w-12 text-right">
-                {count} ({percentage}%)
-              </span>
+          {recentLeads.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-600">Nenhum lead ainda</p>
+              <button
+                onClick={onCreateLead}
+                className="mt-3 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700"
+              >
+                Criar Primeiro Lead
+              </button>
             </div>
+          ) : (
+            <div className="space-y-3">
+              {recentLeads.map(lead => (
+                <div
+                  key={lead.id}
+                  className="flex items-center gap-3 p-3 border border-gray-100 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <span className="text-blue-600 font-medium text-sm">
+                      {lead.nome?.charAt(0)?.toUpperCase() || '?'}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{lead.nome}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      {renderTemperatureIcon(lead.temperature)}
+                      <span className="text-sm text-gray-500">{lead.fonte}</span>
+                      {renderScoreBadge(lead.score)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleQuickCall(lead)}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Ligar"
+                    >
+                      <Phone className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onViewLead?.(lead)}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Ver detalhes"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Leads Quentes */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="bg-white rounded-xl border border-gray-200 p-6"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              🔥 Leads Quentes
+            </h3>
+            <Fire className="w-5 h-5 text-red-500" />
           </div>
-        );
-      })}
+
+          {hotLeads.length === 0 ? (
+            <div className="text-center py-8">
+              <Target className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-600">Nenhum lead quente</p>
+              <p className="text-sm text-gray-500 mt-1">Continue prospectando!</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {hotLeads.map(lead => (
+                <div
+                  key={lead.id}
+                  className="flex items-center gap-3 p-3 border border-red-100 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                    <Fire className="w-5 h-5 text-red-600" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{lead.nome}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-sm text-gray-600">{lead.empresa || lead.telefone}</span>
+                      {renderScoreBadge(lead.score)}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleQuickWhatsapp(lead)}
+                      className="p-1.5 text-gray-400 hover:text-green-600 transition-colors"
+                      title="WhatsApp"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleQuickCall(lead)}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Ligar"
+                    >
+                      <PhoneCall className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onEditLead?.(lead)}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
+                      title="Editar"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Quick Actions */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7 }}
+        className="bg-white rounded-xl border border-gray-200 p-6"
+      >
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          ⚡ Quick Actions
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          <button
+            onClick={onCreateLead}
+            className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-blue-50 hover:border-blue-300 transition-all group"
+          >
+            <Plus className="w-6 h-6 text-gray-600 group-hover:text-blue-600" />
+            <span className="text-sm font-medium text-gray-900">Novo Lead</span>
+          </button>
+
+          <button
+            onClick={onRefresh}
+            className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-green-50 hover:border-green-300 transition-all group"
+          >
+            <Activity className="w-6 h-6 text-gray-600 group-hover:text-green-600" />
+            <span className="text-sm font-medium text-gray-900">Atualizar</span>
+          </button>
+
+          <button className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-purple-50 hover:border-purple-300 transition-all group">
+            <BarChart3 className="w-6 h-6 text-gray-600 group-hover:text-purple-600" />
+            <span className="text-sm font-medium text-gray-900">Analytics</span>
+          </button>
+
+          <button className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-orange-50 hover:border-orange-300 transition-all group">
+            <Briefcase className="w-6 h-6 text-gray-600 group-hover:text-orange-600" />
+            <span className="text-sm font-medium text-gray-900">Pipeline</span>
+          </button>
+
+          <button className="flex flex-col items-center gap-2 p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-all group">
+            <Calendar className="w-6 h-6 text-gray-600 group-hover:text-gray-700" />
+            <span className="text-sm font-medium text-gray-900">Agendar</span>
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Analytics Summary */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-6"
+      >
+        {/* Por Status */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h4 className="font-semibold text-gray-900 mb-4">📊 Por Status</h4>
+          <div className="space-y-3">
+            {Object.entries(computedStats.byStatus).map(([status, count]) => (
+              <div key={status} className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 capitalize">{status}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-blue-600 h-2 rounded-full" 
+                      style={{ width: `${(count / computedStats.total) * 100}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900 w-8">{count}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Por Temperatura */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h4 className="font-semibold text-gray-900 mb-4">🌡️ Por Temperatura</h4>
+          <div className="space-y-3">
+            {Object.entries(computedStats.byTemperature).map(([temp, count]) => (
+              <div key={temp} className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  {renderTemperatureIcon(temp)}
+                  <span className="text-sm text-gray-600 capitalize">{temp}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className={`h-2 rounded-full ${
+                        temp === 'fervendo' ? 'bg-red-600' :
+                        temp === 'quente' ? 'bg-orange-500' :
+                        temp === 'morno' ? 'bg-yellow-500' :
+                        'bg-blue-500'
+                      }`}
+                      style={{ width: `${(count / computedStats.total) * 100}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900 w-8">{count}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Por Fonte */}
+        <div className="bg-white rounded-xl border border-gray-200 p-6">
+          <h4 className="font-semibold text-gray-900 mb-4">📍 Por Fonte</h4>
+          <div className="space-y-3">
+            {Object.entries(computedStats.bySource).slice(0, 5).map(([source, count]) => (
+              <div key={source} className="flex justify-between items-center">
+                <span className="text-sm text-gray-600 capitalize">{source}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-16 bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-green-600 h-2 rounded-full" 
+                      style={{ width: `${(count / computedStats.total) * 100}%` }}
+                    ></div>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900 w-8">{count}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 };
-
-const RecentActivity = ({ leads, onLeadView }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="bg-white rounded-xl border border-gray-200"
-  >
-    <div className="p-6 border-b border-gray-200">
-      <h3 className="font-semibold text-gray-900">Actividade Recente</h3>
-      <p className="text-sm text-gray-600">Últimos leads criados</p>
-    </div>
-    
-    <div className="p-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {leads.map((lead) => (
-          <LeadCard
-            key={lead.id}
-            lead={lead}
-            variant="compact"
-            onView={onLeadView}
-            showActions={false}
-          />
-        ))}
-      </div>
-    </div>
-  </motion.div>
-);
-
-const EmptyDashboard = ({ onCreateLead, className }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className={`text-center py-12 ${className}`}
-  >
-    <Coffee className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-    <h3 className="text-xl font-semibold text-gray-900 mb-2">
-      Pronto para começar?
-    </h3>
-    <p className="text-gray-600 mb-6">
-      Adicione o seu primeiro lead e comece a construir o pipeline épico
-    </p>
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onCreateLead}
-      className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
-    >
-      <Plus className="w-5 h-5" />
-      Criar Primeiro Lead
-    </motion.button>
-  </motion.div>
-);
-
-const DashboardSkeleton = () => (
-  <div className="space-y-6">
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="bg-gray-200 rounded-xl h-24 animate-pulse" />
-      ))}
-    </div>
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {[...Array(3)].map((_, i) => (
-        <div key={i} className="bg-gray-200 rounded-xl h-80 animate-pulse" />
-      ))}
-    </div>
-  </div>
-);
 
 export default LeadsDashboard;
 
-/* 
-📊 LEADS DASHBOARD ÉPICO - CONCLUÍDO!
+/*
+📊 LEADSDASHBOARD.JSX - DASHBOARD INTELIGENTE (2/4)
 
-✅ FEATURES REVOLUCIONÁRIAS:
-1. ✅ Intelligence data computation automática
-2. ✅ 4 stats cards interativas com trends
-3. ✅ 3 quick action panels (Hot, Attention, Ready)
-4. ✅ Performance insights por fonte
-5. ✅ Temperature distribution chart
-6. ✅ Recent activity com cards compactos
-7. ✅ Empty e loading states elegantes
-8. ✅ Micro-animations em todos elementos
-9. ✅ Quick actions integradas (call, whatsapp, convert)
-10. ✅ Responsive design premium
+✅ FEATURES IMPLEMENTADAS:
+1. ✅ STATS CARDS premium com gradientes e animations
+2. ✅ AÇÕES URGENTES inteligentes (leads frios, quentes, conversão)
+3. ✅ LEADS RECENTES com quick actions inline
+4. ✅ LEADS QUENTES prioritários com score badges
+5. ✅ QUICK ACTIONS grid para operações rápidas
+6. ✅ ANALYTICS SUMMARY com charts por status/temperatura/fonte
+7. ✅ LOADING STATES elegantes com skeleton
+8. ✅ EMPTY STATES motivacionais
+9. ✅ RESPONSIVE DESIGN mobile-first
+10. ✅ COMPUTED VALUES otimizados com useMemo
 
-🧠 INTELIGÊNCIA AUTOMÁTICA:
-- Segmentação automática por temperatura
-- Cálculo de leads que precisam atenção
-- Identification de leads prontos converter
-- Performance tracking por fonte
-- Trends e percentages calculation
-- Score médio e distribution analysis
-
-🎨 UX VICIANTE:
-- Cards interativos com hover effects
-- Quick actions contextuais
-- Visual feedback imediato
-- Information hierarchy clara
-- Color coding inteligente
-- Micro-interactions premium
-
-📏 MÉTRICAS:
-- LeadsDashboard.jsx: 350 linhas ✅
-- 10+ sub-components
-- Performance otimizada
-- Zero dependencies extras
-- Padrão modular consistente
-
-🚀 PRÓXIMO PASSO:
-Implementar src/features/leads/components/pipeline/LeadPipeline.jsx (2/3)
-*/
+🧠 INTELLIGENCE FEATURES:
+- Análise automática de leads sem contacto (>3 dias)
+- Identificação de leads quentes sem follow-up
+- Detecção de leads prontos para conversão (score >70)
+- Stats distribuição por status/temperatura/fonte
+- Quick actions*/
