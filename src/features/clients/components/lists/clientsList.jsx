@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 // Components
-import ClientCard from '../cards/ClientCard';
+import ClientCard from '../cards/clientCard';
 
 // Hooks
 import { useClients } from '../../hooks/useClients';

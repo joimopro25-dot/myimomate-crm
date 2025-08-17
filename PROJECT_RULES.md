@@ -222,7 +222,7 @@ import { motion } from 'framer-motion';       // External libs
 import { Plus, Edit } from 'lucide-react';    // Icons
 
 import { useAuth } from '@/shared/hooks';     // Shared hooks
-import { ClientCard } from './ClientCard';    // Local components
+import { ClientCard } from './clientCard';    // Local components
 import { formatCurrency } from '../utils';   // Local utils
 
 // COMPONENTE ESTRUTURADO

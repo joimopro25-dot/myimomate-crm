@@ -94,34 +94,27 @@ const ClientCard = ({
       engagementColor: getEngagementColor(engagementScore),
       engagementLabel: getEngagementLabel(engagementScore),
       totalValue,
-      formattedValue: formatCurrency(totalValue),
       lastContact,
-      lastContactFormatted: formatRelativeDate(lastContact),
       nextAction,
+      initials: getNameInitials(client?.dadosPessoais?.nome),
       isBirthday: isBirthdayToday(client),
       isBirthdayMonth: isBirthdayThisMonth(client),
       hasUrgent: hasUrgentActions(client),
-      initials: getNameInitials(client?.dadosPessoais?.nome),
-      activeDeals: client?.deals?.filter(deal => 
-        ['ativo', 'proposta_enviada', 'negociacao'].includes(deal.status)
-      )?.length || 0,
-      completedDeals: client?.deals?.filter(deal => 
-        deal.status === 'concluido'
-      )?.length || 0
+      roleColor: getRoleColor(client?.papel)
     };
   }, [client]);
 
   // =========================================
-  // 🎯 EVENT HANDLERS
+  // 🎯 HANDLERS
   // =========================================
 
-  const handleClick = () => {
-    if (onClick) onClick(client);
-    else if (onView) onView(client);
-  };
+  const handleClick = useCallback((e) => {
+    e.stopPropagation();
+    onClick?.(client);
+  }, [onClick, client]);
 
-  const handleActionClick = (action, event) => {
-    event?.stopPropagation();
+  const handleActionClick = useCallback((action, e) => {
+    e.stopPropagation();
     
     switch (action) {
       case 'view':
@@ -140,7 +133,7 @@ const ClientCard = ({
         onEmail?.(client);
         break;
     }
-  };
+  }, [onView, onEdit, onContact, onCall, onEmail, client]);
 
   // =========================================
   // 🎨 RENDER VARIANTS
@@ -231,7 +224,7 @@ const ClientCard = ({
               <img 
                 src={client.avatar} 
                 alt={client?.dadosPessoais?.nome}
-                className="w-full h-full rounded-2xl object-cover"
+                className="w-full h-full object-cover rounded-2xl"
               />
             ) : (
               intelligentData.initials
@@ -239,103 +232,104 @@ const ClientCard = ({
           </div>
           
           {/* Status indicator */}
-          <div className={`
-            absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white
-            ${client?.ativo !== false ? 'bg-green-400' : 'bg-gray-400'}
-          `} />
+          <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-md">
+            <div className={`w-4 h-4 rounded-full ${intelligentData.engagementColor}`} />
+          </div>
         </div>
 
         {/* Info básica */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-gray-900 text-lg truncate">
-            {client?.dadosPessoais?.nome || 'Nome não definido'}
+          <h3 className="text-lg font-bold text-gray-900 truncate mb-1">
+            {client?.dadosPessoais?.nome || 'Nome não disponível'}
           </h3>
           
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mb-2">
+            <span className={`
+              px-2 py-1 rounded-full text-xs font-medium
+              ${intelligentData.roleColor}
+            `}>
+              {ClientRoleLabels[client?.papel] || 'Cliente'}
+            </span>
+            
+            {client?.dadosPessoais?.empresa && (
+              <span className="text-sm text-gray-500 truncate">
+                {client.dadosPessoais.empresa}
+              </span>
+            )}
+          </div>
+
+          <div className="space-y-1">
             {client?.dadosPessoais?.email && (
-              <div className="flex items-center gap-1 text-sm text-gray-500">
-                <Mail className="w-3 h-3" />
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Mail className="w-4 h-4" />
                 <span className="truncate">{client.dadosPessoais.email}</span>
               </div>
             )}
+            
+            {client?.dadosPessoais?.telefone && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Phone className="w-4 h-4" />
+                <span>{formatPhone(client.dadosPessoais.telefone)}</span>
+              </div>
+            )}
           </div>
-          
-          {client?.dadosPessoais?.telefone && (
-            <div className="flex items-center gap-1 text-sm text-gray-500 mt-1">
-              <Phone className="w-3 h-3" />
-              <span>{formatPhone(client.dadosPessoais.telefone)}</span>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Roles */}
-      {client?.roles?.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          {client.roles.slice(0, 3).map((role, index) => (
-            <span
-              key={index}
-              className={`px-3 py-1 rounded-full text-xs font-medium ${getRoleColor(role)}`}
-            >
-              {ClientRoleLabels[role] || role}
-            </span>
-          ))}
-          {client.roles.length > 3 && (
-            <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-              +{client.roles.length - 3}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Métricas */}
+      {/* Métricas centrais */}
       {showMetrics && (
-        <div className="grid grid-cols-3 gap-4 mb-4 py-3 border-t border-gray-100">
+        <div className="grid grid-cols-3 gap-4 mb-4">
           {/* Engagement Score */}
           <div className="text-center">
             <div className={`
-              inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold
+              w-12 h-12 mx-auto rounded-xl flex items-center justify-center text-white font-bold mb-2
               ${intelligentData.engagementColor}
             `}>
               {intelligentData.engagementScore}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Engagement</p>
+            <p className="text-xs text-gray-500">Engagement</p>
           </div>
 
-          {/* Deals Value */}
+          {/* Valor total */}
           <div className="text-center">
-            <div className="text-sm font-bold text-gray-900">
-              {intelligentData.formattedValue}
+            <div className="text-lg font-bold text-gray-900 mb-1">
+              {formatCurrency(intelligentData.totalValue)}
             </div>
             <p className="text-xs text-gray-500">Valor Total</p>
           </div>
 
-          {/* Active Deals */}
+          {/* Último contacto */}
           <div className="text-center">
-            <div className="text-sm font-bold text-gray-900">
-              {intelligentData.activeDeals}
+            <div className="text-sm font-semibold text-gray-700 mb-1">
+              {intelligentData.lastContact ? formatRelativeDate(intelligentData.lastContact) : 'Nunca'}
             </div>
-            <p className="text-xs text-gray-500">Negócios</p>
+            <p className="text-xs text-gray-500">Último contacto</p>
           </div>
         </div>
       )}
 
-      {/* Próxima ação */}
-      <div className="bg-gray-50 rounded-xl p-3 mb-4">
-        <div className="flex items-center gap-2">
-          <Target className="w-4 h-4 text-blue-600" />
-          <span className="text-sm text-gray-700 flex-1">
+      {/* Próxima ação recomendada */}
+      {intelligentData.nextAction && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+          <div className="flex items-center gap-2">
+            <Target className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-blue-900">
+              Próxima ação
+            </span>
+          </div>
+          <p className="text-sm text-blue-700 mt-1">
             {intelligentData.nextAction}
-          </span>
+          </p>
         </div>
-      </div>
+      )}
 
       {/* Actions */}
       {showActions && (
-        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-          <div className="flex items-center gap-2 text-xs text-gray-500">
-            <Clock className="w-3 h-3" />
-            <span>Último contacto: {intelligentData.lastContactFormatted}</span>
+        <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">
+              {intelligentData.engagementLabel}
+            </span>
           </div>
 
           <div className="flex items-center gap-1">
@@ -344,7 +338,7 @@ const ClientCard = ({
               whileTap={{ scale: 0.95 }}
               onClick={(e) => handleActionClick('call', e)}
               className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-              title="Telefonar"
+              title="Ligar"
             >
               <Phone className="w-4 h-4" />
             </motion.button>
@@ -354,7 +348,7 @@ const ClientCard = ({
               whileTap={{ scale: 0.95 }}
               onClick={(e) => handleActionClick('email', e)}
               className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Enviar email"
+              title="Email"
             >
               <Mail className="w-4 h-4" />
             </motion.button>
@@ -461,9 +455,9 @@ const DetailedCard = ({
   client, 
   intelligentData, 
   onActionClick, 
-  onClick,
-  showActions,
-  showMetrics,
+  onClick, 
+  showActions, 
+  showMetrics, 
   className 
 }) => (
   <motion.div
@@ -471,153 +465,132 @@ const DetailedCard = ({
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     exit={{ opacity: 0, y: -20 }}
-    whileHover={{ 
-      scale: 1.02,
-      boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
-    }}
+    whileHover={{ scale: 1.01 }}
     onClick={onClick}
     className={`
-      bg-white rounded-3xl border border-gray-200 p-8
-      cursor-pointer transition-all duration-300 overflow-hidden
-      hover:border-blue-300 group shadow-lg
+      bg-white rounded-2xl border border-gray-200 p-8
+      cursor-pointer transition-all duration-200
+      hover:border-blue-300 hover:shadow-xl
       ${className}
     `}
   >
     {/* Header expandido */}
-    <div className="flex items-start justify-between mb-6">
-      <div className="flex items-start gap-4">
-        {/* Avatar grande */}
-        <div className="relative">
-          <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center text-white font-bold text-xl shadow-xl">
-            {intelligentData.initials}
-          </div>
-          
-          {/* Badges do avatar */}
-          <div className="absolute -top-2 -right-2 flex flex-col gap-1">
-            {intelligentData.isBirthday && (
-              <div className="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center text-xs">
-                🎂
-              </div>
-            )}
-            {intelligentData.hasUrgent && (
-              <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-3 h-3 text-white" />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Info detalhada */}
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            {client?.dadosPessoais?.nome}
-          </h2>
-          
-          <div className="space-y-2">
-            {client?.dadosPessoais?.email && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <Mail className="w-4 h-4" />
-                <span>{client.dadosPessoais.email}</span>
-              </div>
-            )}
-            
-            {client?.dadosPessoais?.telefone && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <Phone className="w-4 h-4" />
-                <span>{formatPhone(client.dadosPessoais.telefone)}</span>
-              </div>
-            )}
-            
-            {client?.dadosPessoais?.morada && (
-              <div className="flex items-center gap-2 text-gray-600">
-                <MapPin className="w-4 h-4" />
-                <span className="truncate">{client.dadosPessoais.morada}</span>
-              </div>
-            )}
-          </div>
-        </div>
+    <div className="flex items-start gap-6 mb-6">
+      {/* Avatar grande */}
+      <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-3xl flex items-center justify-center text-white font-bold text-2xl shadow-lg">
+        {intelligentData.initials}
       </div>
 
-      {/* Engagement Score grande */}
-      <div className="text-center">
-        <div className={`
-          w-16 h-16 rounded-2xl flex items-center justify-center text-lg font-bold
-          ${intelligentData.engagementColor} shadow-lg
-        `}>
-          {intelligentData.engagementScore}
-        </div>
-        <p className="text-sm text-gray-500 mt-2">
-          {intelligentData.engagementLabel}
-        </p>
-      </div>
-    </div>
-
-    {/* Roles expandidos */}
-    {client?.roles?.length > 0 && (
-      <div className="flex flex-wrap gap-2 mb-6">
-        {client.roles.map((role, index) => (
-          <span
-            key={index}
-            className={`px-4 py-2 rounded-xl text-sm font-medium ${getRoleColor(role)}`}
-          >
-            {ClientRoleLabels[role] || role}
+      {/* Info detalhada */}
+      <div className="flex-1">
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+          {client?.dadosPessoais?.nome}
+        </h2>
+        
+        <div className="flex items-center gap-3 mb-3">
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${intelligentData.roleColor}`}>
+            {ClientRoleLabels[client?.papel] || 'Cliente'}
           </span>
-        ))}
-      </div>
-    )}
-
-    {/* Métricas detalhadas */}
-    {showMetrics && (
-      <div className="grid grid-cols-4 gap-6 mb-6 py-6 border-t border-b border-gray-100">
-        <div className="text-center">
-          <div className="text-2xl font-bold text-gray-900">
-            {intelligentData.formattedValue}
-          </div>
-          <p className="text-sm text-gray-500">Valor Total</p>
+          {client?.dadosPessoais?.empresa && (
+            <span className="text-gray-600">{client.dadosPessoais.empresa}</span>
+          )}
         </div>
 
-        <div className="text-center">
-          <div className="text-2xl font-bold text-blue-600">
-            {intelligentData.activeDeals}
-          </div>
-          <p className="text-sm text-gray-500">Negócios Ativos</p>
-        </div>
-
-        <div className="text-center">
-          <div className="text-2xl font-bold text-green-600">
-            {intelligentData.completedDeals}
-          </div>
-          <p className="text-sm text-gray-500">Concluídos</p>
-        </div>
-
-        <div className="text-center">
-          <div className="text-2xl font-bold text-purple-600">
-            {client?.documentos?.length || 0}
-          </div>
-          <p className="text-sm text-gray-500">Documentos</p>
-        </div>
-      </div>
-    )}
-
-    {/* Próxima ação expandida */}
-    <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-4 mb-6">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
-          <Target className="w-5 h-5 text-white" />
-        </div>
-        <div>
-          <p className="font-semibold text-gray-900">Próxima ação:</p>
-          <p className="text-gray-600">{intelligentData.nextAction}</p>
+        <div className="grid grid-cols-2 gap-4">
+          {client?.dadosPessoais?.email && (
+            <div className="flex items-center gap-2 text-gray-600">
+              <Mail className="w-5 h-5" />
+              <span>{client.dadosPessoais.email}</span>
+            </div>
+          )}
+          
+          {client?.dadosPessoais?.telefone && (
+            <div className="flex items-center gap-2 text-gray-600">
+              <Phone className="w-5 h-5" />
+              <span>{formatPhone(client.dadosPessoais.telefone)}</span>
+            </div>
+          )}
+          
+          {client?.dadosPessoais?.endereco && (
+            <div className="flex items-center gap-2 text-gray-600">
+              <MapPin className="w-5 h-5" />
+              <span className="truncate">{client.dadosPessoais.endereco}</span>
+            </div>
+          )}
+          
+          {client?.dadosPessoais?.aniversario && (
+            <div className="flex items-center gap-2 text-gray-600">
+              <Calendar className="w-5 h-5" />
+              <span>{new Date(client.dadosPessoais.aniversario).toLocaleDateString('pt-PT')}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
+
+    {/* Métricas expandidas */}
+    {showMetrics && (
+      <div className="grid grid-cols-4 gap-6 mb-6">
+        <div className="text-center">
+          <div className={`w-16 h-16 mx-auto rounded-2xl flex items-center justify-center text-white font-bold text-lg mb-2 ${intelligentData.engagementColor}`}>
+            {intelligentData.engagementScore}
+          </div>
+          <p className="font-medium text-gray-900">Engagement</p>
+          <p className="text-sm text-gray-500">{intelligentData.engagementLabel}</p>
+        </div>
+
+        <div className="text-center">
+          <div className="text-2xl font-bold text-gray-900 mb-2">
+            {formatCurrency(intelligentData.totalValue)}
+          </div>
+          <p className="font-medium text-gray-900">Valor Total</p>
+          <p className="text-sm text-gray-500">Negócios ativos</p>
+        </div>
+
+        <div className="text-center">
+          <div className="text-lg font-bold text-gray-900 mb-2">
+            {intelligentData.lastContact ? formatRelativeDate(intelligentData.lastContact) : 'Nunca'}
+          </div>
+          <p className="font-medium text-gray-900">Último Contacto</p>
+          <p className="text-sm text-gray-500">Comunicação recente</p>
+        </div>
+
+        <div className="text-center">
+          <div className="flex items-center justify-center gap-1 mb-2">
+            {intelligentData.isBirthday && <Gift className="w-6 h-6 text-pink-500" />}
+            {intelligentData.hasUrgent && <AlertCircle className="w-6 h-6 text-red-500" />}
+            {!intelligentData.isBirthday && !intelligentData.hasUrgent && (
+              <CheckCircle className="w-6 h-6 text-green-500" />
+            )}
+          </div>
+          <p className="font-medium text-gray-900">Status</p>
+          <p className="text-sm text-gray-500">
+            {intelligentData.isBirthday ? 'Aniversário hoje!' : 
+             intelligentData.hasUrgent ? 'Ações urgentes' : 'Tudo OK'}
+          </p>
+        </div>
+      </div>
+    )}
+
+    {/* Próxima ação */}
+    {intelligentData.nextAction && (
+      <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-2xl p-4 mb-6">
+        <div className="flex items-center gap-3 mb-2">
+          <Target className="w-5 h-5 text-blue-600" />
+          <span className="font-semibold text-blue-900">Próxima ação recomendada</span>
+        </div>
+        <p className="text-blue-800">{intelligentData.nextAction}</p>
+      </div>
+    )}
 
     {/* Actions expandidas */}
     {showActions && (
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm text-gray-500">
-          <Clock className="w-4 h-4" />
-          <span>Último contacto: {intelligentData.lastContactFormatted}</span>
+      <div className="flex items-center justify-between pt-6 border-t border-gray-100">
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-500">Última atualização:</span>
+          <span className="text-sm font-medium text-gray-700">
+            {formatRelativeDate(client?.updatedAt || new Date())}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -625,30 +598,40 @@ const DetailedCard = ({
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={(e) => onActionClick('call', e)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors"
+            className="px-4 py-2 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-colors flex items-center gap-2"
           >
             <Phone className="w-4 h-4" />
-            <span>Ligar</span>
+            Ligar
           </motion.button>
 
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={(e) => onActionClick('email', e)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 transition-colors"
+            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-xl hover:bg-blue-200 transition-colors flex items-center gap-2"
           >
             <Mail className="w-4 h-4" />
-            <span>Email</span>
+            Email
           </motion.button>
 
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={(e) => onActionClick('edit', e)}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors"
+            className="px-4 py-2 bg-purple-100 text-purple-700 rounded-xl hover:bg-purple-200 transition-colors flex items-center gap-2"
           >
             <Edit3 className="w-4 h-4" />
-            <span>Editar</span>
+            Editar
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={(e) => onActionClick('view', e)}
+            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2"
+          >
+            <Eye className="w-4 h-4" />
+            Detalhes
           </motion.button>
         </div>
       </div>
@@ -656,4 +639,4 @@ const DetailedCard = ({
   </motion.div>
 );
 
-export default React.memo(ClientCard);
+export default ClientCard;
