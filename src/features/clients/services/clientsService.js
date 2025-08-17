@@ -1,8 +1,9 @@
 // =========================================
-// 🔥 FIREBASE SERVICE - MÓDULO CLIENTES
+// 🔥 FIREBASE SERVICE - MÓDULO CLIENTES CORRIGIDO
 // =========================================
 // Service para operações CRUD dos clientes no Firestore
-// Inclui paginação, filtros, estatísticas e operações avançadas
+// CORREÇÃO: Conflito de nome 'limit' resolvido
+// Arquivo: src/features/clients/services/clientsService.js
 
 import { 
   collection, 
@@ -15,7 +16,7 @@ import {
   query, 
   where, 
   orderBy, 
-  limit, 
+  limit as firestoreLimit, // 🔥 CORREÇÃO: Renomear import
   startAfter,
   getCountFromServer,
   writeBatch,
@@ -84,7 +85,7 @@ const buildQuery = (userId, filters = {}, pagination = {}) => {
   
   // ===== PAGINAÇÃO =====
   if (pagination.limit) {
-    q = query(q, limit(pagination.limit));
+    q = query(q, firestoreLimit(pagination.limit)); // 🔥 CORREÇÃO: Usar firestoreLimit
   }
   
   if (pagination.startAfter) {
@@ -145,13 +146,13 @@ export const getClients = async (userId, options = {}) => {
     const {
       filters = {},
       page = 1,
-      limit = PAGINATION.DEFAULT_LIMIT,
+      limitParam = PAGINATION.DEFAULT_LIMIT, // 🔥 CORREÇÃO: Renomear parâmetro
       startAfterDoc = null
     } = options;
     
     // Construir query
     const q = buildQuery(userId, filters, { 
-      limit: limit + 1, // +1 para verificar se há mais páginas
+      limit: limitParam + 1, // +1 para verificar se há mais páginas
       startAfter: startAfterDoc 
     });
     
@@ -170,9 +171,9 @@ export const getClients = async (userId, options = {}) => {
     });
     
     // Verificar se há mais páginas
-    const hasMore = clients.length > limit;
+    const hasMore = clients.length > limitParam;
     if (hasMore) {
-      clients = clients.slice(0, limit); // Remover o item extra
+      clients = clients.slice(0, limitParam); // Remover o item extra
     }
     
     // Aplicar filtros em memória
@@ -190,40 +191,39 @@ export const getClients = async (userId, options = {}) => {
       data: clients,
       total,
       page,
-      limit,
-      hasMore: hasMore && clients.length === limit,
+      limit: limitParam,
+      hasMore: hasMore && clients.length === limitParam,
       lastDoc: clients.length > 0 ? snapshot.docs[clients.length - 1] : null
     };
     
   } catch (error) {
-    console.error('Erro ao buscar clientes:', error);
-    throw new Error(`Falha ao carregar clientes: ${error.message}`);
+    console.error('❌ Erro ao buscar clientes:', error);
+    throw new Error(`Falha ao buscar clientes: ${error.message}`);
   }
 };
 
 /**
- * Buscar cliente específico por ID
+ * Buscar cliente por ID
  */
 export const getClient = async (userId, clientId) => {
   try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
-    const snapshot = await getDoc(clientRef);
+    const docRef = doc(getClientsCollection(userId), clientId);
+    const docSnap = await getDoc(docRef);
     
-    if (!snapshot.exists()) {
+    if (!docSnap.exists()) {
       throw new Error('Cliente não encontrado');
     }
     
-    const data = snapshot.data();
     return {
-      id: snapshot.id,
-      ...data,
-      createdAt: data.createdAt?.toDate(),
-      updatedAt: data.updatedAt?.toDate()
+      id: docSnap.id,
+      ...docSnap.data(),
+      createdAt: docSnap.data().createdAt?.toDate(),
+      updatedAt: docSnap.data().updatedAt?.toDate()
     };
     
   } catch (error) {
-    console.error('Erro ao buscar cliente:', error);
-    throw new Error(`Falha ao carregar cliente: ${error.message}`);
+    console.error('❌ Erro ao buscar cliente:', error);
+    throw new Error(`Falha ao buscar cliente: ${error.message}`);
   }
 };
 
@@ -232,30 +232,28 @@ export const getClient = async (userId, clientId) => {
  */
 export const createClient = async (userId, clientData) => {
   try {
-    // Preparar dados com timestamps
-    const dataToSave = {
+    console.log('✨ Criando novo cliente...', { userId, clientData });
+    
+    // Preparar dados com timestamp
+    const newClientData = {
       ...clientData,
-      ativo: true,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      createdBy: userId,
-      updatedBy: userId,
-      // Garantir arrays vazios se não existirem
-      documentos: clientData.documentos || [],
-      deals: clientData.deals || [],
-      historicoComunicacao: clientData.historicoComunicacao || []
+      ativo: true
     };
     
     // Criar documento
-    const docRef = await addDoc(getClientsCollection(userId), dataToSave);
+    const docRef = await addDoc(getClientsCollection(userId), newClientData);
     
-    // Buscar o documento criado para retornar com dados completos
+    // Buscar documento criado para retornar com dados completos
     const createdClient = await getClient(userId, docRef.id);
+    
+    console.log('✅ Cliente criado com sucesso:', { id: docRef.id, nome: clientData.dadosPessoais?.nome });
     
     return createdClient;
     
   } catch (error) {
-    console.error('Erro ao criar cliente:', error);
+    console.error('❌ Erro ao criar cliente:', error);
     throw new Error(`Falha ao criar cliente: ${error.message}`);
   }
 };
@@ -265,24 +263,25 @@ export const createClient = async (userId, clientData) => {
  */
 export const updateClient = async (userId, clientId, updates) => {
   try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
+    console.log('📝 Atualizando cliente...', { userId, clientId, updates });
     
-    // Preparar dados de atualização
-    const dataToUpdate = {
+    const updateData = {
       ...updates,
-      updatedAt: serverTimestamp(),
-      updatedBy: userId
+      updatedAt: serverTimestamp()
     };
     
-    // Atualizar documento
-    await updateDoc(clientRef, dataToUpdate);
+    const docRef = doc(getClientsCollection(userId), clientId);
+    await updateDoc(docRef, updateData);
     
     // Retornar cliente atualizado
     const updatedClient = await getClient(userId, clientId);
+    
+    console.log('✅ Cliente atualizado com sucesso:', { id: clientId });
+    
     return updatedClient;
     
   } catch (error) {
-    console.error('Erro ao atualizar cliente:', error);
+    console.error('❌ Erro ao atualizar cliente:', error);
     throw new Error(`Falha ao atualizar cliente: ${error.message}`);
   }
 };
@@ -292,44 +291,49 @@ export const updateClient = async (userId, clientId, updates) => {
  */
 export const deleteClient = async (userId, clientId) => {
   try {
-    const clientRef = doc(getClientsCollection(userId), clientId);
-    await deleteDoc(clientRef);
+    console.log('🗑️ Deletando cliente...', { userId, clientId });
     
-    return { success: true, message: 'Cliente deletado com sucesso' };
+    const docRef = doc(getClientsCollection(userId), clientId);
+    await deleteDoc(docRef);
+    
+    console.log('✅ Cliente deletado com sucesso:', { id: clientId });
+    
+    return { success: true, id: clientId };
     
   } catch (error) {
-    console.error('Erro ao deletar cliente:', error);
+    console.error('❌ Erro ao deletar cliente:', error);
     throw new Error(`Falha ao deletar cliente: ${error.message}`);
   }
 };
 
 /**
- * Deletar múltiplos clientes (batch operation)
+ * Deletar múltiplos clientes
  */
 export const deleteMultipleClients = async (userId, clientIds) => {
   try {
+    console.log('🗑️ Deletando múltiplos clientes...', { userId, count: clientIds.length });
+    
     const batch = writeBatch(db);
     
     clientIds.forEach(clientId => {
-      const clientRef = doc(getClientsCollection(userId), clientId);
-      batch.delete(clientRef);
+      const docRef = doc(getClientsCollection(userId), clientId);
+      batch.delete(docRef);
     });
     
     await batch.commit();
     
-    return { 
-      success: true, 
-      message: `${clientIds.length} clientes deletados com sucesso` 
-    };
+    console.log('✅ Múltiplos clientes deletados com sucesso:', { count: clientIds.length });
+    
+    return { success: true, deletedCount: clientIds.length };
     
   } catch (error) {
-    console.error('Erro ao deletar múltiplos clientes:', error);
+    console.error('❌ Erro ao deletar múltiplos clientes:', error);
     throw new Error(`Falha ao deletar clientes: ${error.message}`);
   }
 };
 
 // =========================================
-// 📊 OPERAÇÕES DE ESTATÍSTICAS
+// 📊 ESTATÍSTICAS E ANALYTICS
 // =========================================
 
 /**
@@ -337,12 +341,10 @@ export const deleteMultipleClients = async (userId, clientIds) => {
  */
 export const getClientStats = async (userId) => {
   try {
-    // Buscar todos os clientes (sem limite para estatísticas)
-    const q = query(
-      getClientsCollection(userId),
-      orderBy('createdAt', 'desc')
-    );
+    console.log('📊 Buscando estatísticas dos clientes...', { userId });
     
+    // Buscar todos os clientes para calcular estatísticas
+    const q = query(getClientsCollection(userId), orderBy('createdAt', 'desc'));
     const snapshot = await getDocs(q);
     
     const clients = [];
@@ -350,80 +352,57 @@ export const getClientStats = async (userId) => {
       clients.push({
         id: doc.id,
         ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate()
+        createdAt: doc.data().createdAt?.toDate(),
+        updatedAt: doc.data().updatedAt?.toDate()
       });
     });
     
     // Calcular estatísticas
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    
     const stats = {
       total: clients.length,
-      active: clients.filter(c => c.ativo !== false).length,
-      inactive: clients.filter(c => c.ativo === false).length,
-      newThisMonth: 0,
-      porRole: {},
-      porEstadoCivil: {},
-      porOrigem: {},
-      totalDeals: 0,
-      dealsAtivos: 0,
-      valorTotalDeals: 0
-    };
-    
-    // Calcular novos este mês
-    const inicioMes = new Date();
-    inicioMes.setDate(1);
-    inicioMes.setHours(0, 0, 0, 0);
-    
-    stats.newThisMonth = clients.filter(c => 
-      c.createdAt && c.createdAt >= inicioMes
-    ).length;
-    
-    // Calcular estatísticas por categoria
-    clients.forEach(client => {
-      // Por role
-      if (client.roles) {
-        client.roles.forEach(role => {
-          stats.porRole[role] = (stats.porRole[role] || 0) + 1;
-        });
-      }
+      ativos: clients.filter(c => c.ativo !== false).length,
+      inativos: clients.filter(c => c.ativo === false).length,
+      novosEsteMes: clients.filter(c => c.createdAt >= thisMonth).length,
       
-      // Por estado civil
-      const estadoCivil = client.dadosPessoais?.estadoCivil;
-      if (estadoCivil) {
-        stats.porEstadoCivil[estadoCivil] = (stats.porEstadoCivil[estadoCivil] || 0) + 1;
-      }
+      // Por role
+      compradores: clients.filter(c => c.roles?.includes('comprador')).length,
+      vendedores: clients.filter(c => c.roles?.includes('vendedor')).length,
+      investidores: clients.filter(c => c.roles?.includes('investidor')).length,
       
       // Por origem
-      const origem = client.origem;
-      if (origem) {
-        stats.porOrigem[origem] = (stats.porOrigem[origem] || 0) + 1;
-      }
+      origemLead: clients.filter(c => c.origem === 'lead').length,
+      origemReferencia: clients.filter(c => c.origem === 'referencia').length,
+      origemWebsite: clients.filter(c => c.origem === 'website').length,
       
-      // Deals
-      if (client.deals) {
-        stats.totalDeals += client.deals.length;
-        
-        client.deals.forEach(deal => {
-          if (deal.status !== 'concluido' && deal.status !== 'cancelado') {
-            stats.dealsAtivos += 1;
-          }
-          
-          if (deal.valor) {
-            stats.valorTotalDeals += deal.valor;
-          }
-        });
-      }
-    });
+      // Crescimento mensal
+      crescimentoMensal: 0 // Será calculado comparando com mês anterior
+    };
+    
+    // Calcular crescimento mensal
+    const clientesUltimoMes = clients.filter(c => {
+      return c.createdAt >= lastMonth && c.createdAt < thisMonth;
+    }).length;
+    
+    if (clientesUltimoMes > 0) {
+      stats.crescimentoMensal = ((stats.novosEsteMes - clientesUltimoMes) / clientesUltimoMes) * 100;
+    }
+    
+    console.log('✅ Estatísticas calculadas:', stats);
     
     return stats;
     
   } catch (error) {
-    console.error('Erro ao buscar estatísticas:', error);
-    throw new Error(`Falha ao carregar estatísticas: ${error.message}`);
+    console.error('❌ Erro ao calcular estatísticas:', error);
+    throw new Error(`Falha ao calcular estatísticas: ${error.message}`);
   }
 };
 
 // =========================================
-// 🔍 OPERAÇÕES DE PESQUISA AVANÇADA
+// 🔍 PESQUISA AVANÇADA
 // =========================================
 
 /**
@@ -434,13 +413,13 @@ export const searchClients = async (userId, searchTerm, options = {}) => {
     // Para pesquisa por texto, precisamos buscar todos e filtrar em memória
     // Em produção, consideraria usar Algolia ou similar para pesquisa full-text
     
-    const { limit = 20 } = options;
+    const { limit: limitParam = 20 } = options; // 🔥 CORREÇÃO: Renomear parâmetro
     
     // Buscar todos os clientes
     const q = query(
       getClientsCollection(userId),
       orderBy('createdAt', 'desc'),
-      limit(100) // Limite maior para pesquisa
+      firestoreLimit(100) // 🔥 CORREÇÃO: Usar firestoreLimit
     );
     
     const snapshot = await getDocs(q);
@@ -472,9 +451,9 @@ export const searchClients = async (userId, searchTerm, options = {}) => {
     });
     
     return {
-      data: filtered.slice(0, limit),
+      data: filtered.slice(0, limitParam), // 🔥 CORREÇÃO: Usar limitParam
       total: filtered.length,
-      hasMore: filtered.length > limit
+      hasMore: filtered.length > limitParam // 🔥 CORREÇÃO: Usar limitParam
     };
     
   } catch (error) {
@@ -482,6 +461,52 @@ export const searchClients = async (userId, searchTerm, options = {}) => {
     throw new Error(`Falha na pesquisa: ${error.message}`);
   }
 };
+
+// =========================================
+// 🎯 OPERAÇÕES ESPECIAIS
+// =========================================
+
+/**
+ * Adicionar tag a um cliente
+ */
+export const addTagToClient = async (userId, clientId, tag) => {
+  try {
+    const docRef = doc(getClientsCollection(userId), clientId);
+    await updateDoc(docRef, {
+      tags: arrayUnion(tag),
+      updatedAt: serverTimestamp()
+    });
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error('❌ Erro ao adicionar tag:', error);
+    throw new Error(`Falha ao adicionar tag: ${error.message}`);
+  }
+};
+
+/**
+ * Remover tag de um cliente
+ */
+export const removeTagFromClient = async (userId, clientId, tag) => {
+  try {
+    const docRef = doc(getClientsCollection(userId), clientId);
+    await updateDoc(docRef, {
+      tags: arrayRemove(tag),
+      updatedAt: serverTimestamp()
+    });
+    
+    return { success: true };
+    
+  } catch (error) {
+    console.error('❌ Erro ao remover tag:', error);
+    throw new Error(`Falha ao remover tag: ${error.message}`);
+  }
+};
+
+// =========================================
+// 📤 EXPORTS
+// =========================================
 
 // Export default com todas as funções
 export default {
@@ -492,5 +517,7 @@ export default {
   deleteClient,
   deleteMultipleClients,
   getClientStats,
-  searchClients
+  searchClients,
+  addTagToClient,
+  removeTagFromClient
 };
